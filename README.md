@@ -93,7 +93,7 @@ NB-group：
 
 ## 前言
 
-最近（很久以前）看到 Windows 12 概念版（Powered by PowerPoint）后深受启发，决定做一个 Windows 12 网页版，就像 [Windows 11 网页版](https://win11.blueedge.me/) 一样。
+最近（很久以前）看到 [Windows 12 概念版（Powered by PowerPoint）](https://pan.quark.cn/s/742da1f9620c)后深受启发，决定做一个 Windows 12 网页版，就像 [Windows 11 网页版](https://win11.blueedge.me/) 一样。
 
 参考 [前景规划](#前景规划)。
 
