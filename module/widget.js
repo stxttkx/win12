@@ -45,6 +45,20 @@ let widgets = {
             $('#calc-input-widgets').val('0');
         }
     },
+    music163: {
+        init: () => {
+            widgetMusic163 = new Musiclator('.wg.music163:not(.template)>.content>.container>#music163-input-widgets', '.wg.music163:not(.template)>.content');
+        },
+        remove: () => {
+            // $('#calc-input-widgets')[0].value = '0';
+            $('#music163-input-widgets').val('0');
+        },
+        update: () => {
+            var musicId = $('#music163-input-widgets').val();
+            $('.wg.music163>.content>.text>.detail').html(
+            `<iframe frameborder="no" marginwidth="0" marginheight="0" src="https://music.163.com/outchain/player?type=2&id=${musicId}&auto=1&height=66"></iframe>`);
+        }
+    },
     weather: {
         init: () => {
             widgets.weather.update();
