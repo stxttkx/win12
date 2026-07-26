@@ -1517,6 +1517,20 @@ toggletheme() 切换主题
 								<a class="a checkbox checked" id="sys_setting_7" onclick="sys_setting[6]=1-sys_setting[6];document.querySelector('.rainbow-container-main').setAttribute('style', 'display:' + (sys_setting[6] ? 'block' : 'none')+ ';');document.getElementById('sys_setting_7').setAttribute('class', 'a checkbox' + (sys_setting[6]?' checked':''));updateVoiceBallStatus();saveDesktop();"></a>
 							</div>
 						</div>
+						<a class="dp advanced" onclick="$('.dp.advanced').toggleClass('show');">
+							<icon>&#xE94F;</icon><div><p>高级设置</p><p>蓝屏颜色等高级个性化设置</p></div><i class="bi bi-chevron-down"></i>
+						</a>
+						<div class="dp advanced" style="padding: 15px;">
+							<p>蓝屏颜色</p>
+							<div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+								<div class="a act color panic-color" style="background: #136fca; width: 40px; height: 40px; border-radius: 8px;"
+									onclick="$('div.dp.advanced>div>input.panic-inp')[0].click();"></div>
+								<input type="color" class="panic-inp"
+									onchange="var c=this.value;$('div.dp.advanced>div>.color.panic-color').css('background-color',c);"
+									value="#136fca">
+								<a class="a button" onclick="var c=$('div.dp.advanced>div>input.panic-inp').val();setPanicColor(c);$('div.dp.advanced>div>.color.panic-color').css('background-color',c);">应用</a>
+							</div>
+						</div>
 					</div>
 				</div>
 				<!-- 应用 -->

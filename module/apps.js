@@ -5,6 +5,10 @@ let apps = {
             $('#win-setting>.menu>list>a.home')[0].click();
             $('#win-setting>.page>.cnt.update>.setting-list>div:last-child>.alr>a.checkbox')[localStorage.getItem('autoUpdate') == 'true' ? 'addClass' : 'removeClass']('checked');
             apps.setting.checkUpdate();
+            // 加载已保存的蓝屏颜色
+            var savedColor = getPanicColor();
+            $('div.dp.advanced>div>input.panic-inp').val(savedColor);
+            $('div.dp.advanced>div>.color.panic-color').css('background-color', savedColor);
         },
         page: (name) => {
             $('#win-setting>.page>.cnt.' + name).scrollTop(0);

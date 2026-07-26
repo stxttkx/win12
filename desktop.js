@@ -2780,6 +2780,22 @@ document.getElementsByTagName('body')[0].onload = () => {
         $('.window.whiteboard>.titbar>p').text('Whiteboard');
         isDark = false;
     }
+    // 桌面版：从 Tauri settings.json 同步 panic-color 到 localStorage
+    if (window.win12Native && window.win12Native.isTauri && window.win12Native.isTauri()) {
+        (async function() {
+            try {
+                var json = await window.win12Native.readSettings();
+                if (json) {
+                    var settings = JSON.parse(json);
+                    if (settings['panic-color']) {
+                        localStorage.setItem('panic-color', settings['panic-color']);
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load settings from Tauri:', e);
+            }
+        })();
+    }
     if (localStorage.getItem('color1')) {
         $(':root').css('--theme-1', localStorage.getItem('color1'));
         $(':root').css('--theme-2', localStorage.getItem('color2'));
@@ -2911,6 +2927,44 @@ function sendToSw(msg) {
 const setData = (k, v) => {
     localStorage.setItem(k, v);
 };
+
+/**
+ * 获取蓝屏颜色 (panic-color)
+ * 优先级：Tauri settings.json > localStorage > cookie > 默认值 #136fca
+ */
+function getPanicColor() {
+    // 先尝试从 localStorage 读取 (网页版使用)
+    var color = localStorage.getItem('panic-color');
+    if (color) return color;
+    // 再从 cookie 读取
+    var match = document.cookie.match(/(?:^|;\s*)panic-color=([^;]*)/);
+    if (match) return decodeURIComponent(match[1]);
+    return '#136fca';
+}
+
+/**
+ * 设置蓝屏颜色 (panic-color)
+ * 网页版 -> localStorage + cookie
+ * 桌面版 -> Tauri settings.json
+ */
+async function setPanicColor(color) {
+    if (window.win12Native && window.win12Native.isTauri && window.win12Native.isTauri()) {
+    // 桌面版：写入 Tauri settings.json
+        try {
+            var json = await window.win12Native.readSettings();
+            var settings = json ? JSON.parse(json) : {};
+            settings['panic-color'] = color;
+            await window.win12Native.writeSettings(settings);
+        } catch (e) {
+            console.error('Failed to save panic color to Tauri settings:', e);
+        }
+    }
+    // 网页版：写入 localStorage 和 cookie (有效期 365 天)
+    localStorage.setItem('panic-color', color);
+    var d = new Date();
+    d.setTime(d.getTime() + 365 * 24 * 60 * 60 * 1000);
+    document.cookie = 'panic-color=' + encodeURIComponent(color) + '; expires=' + d.toUTCString() + '; path=/';
+}
 
 /**
  * 将秒数换算为可读的时间格式
