@@ -438,10 +438,6 @@
       // 读取已保存的蓝屏颜色 (panic-color)
       (function() {
         var color = localStorage.getItem('panic-color');
-        if (!color) {
-          var match = document.cookie.match(/(?:^|;\s*)panic-color=([^;]*)/);
-          if (match) color = decodeURIComponent(match[1]);
-        }
         if (color) {
           document.documentElement.style.setProperty('--panic-color', color);
         }

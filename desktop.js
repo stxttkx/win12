@@ -2930,21 +2930,18 @@ const setData = (k, v) => {
 
 /**
  * 获取蓝屏颜色 (panic-color)
- * 优先级：Tauri settings.json > localStorage > cookie > 默认值 #136fca
+ * 优先级：Tauri settings.json > localStorage > 默认值 #136fca
  */
 function getPanicColor() {
     // 先尝试从 localStorage 读取 (网页版使用)
     var color = localStorage.getItem('panic-color');
     if (color) return color;
-    // 再从 cookie 读取
-    var match = document.cookie.match(/(?:^|;\s*)panic-color=([^;]*)/);
-    if (match) return decodeURIComponent(match[1]);
     return '#136fca';
 }
 
 /**
  * 设置蓝屏颜色 (panic-color)
- * 网页版 -> localStorage + cookie
+ * 网页版 -> localStorage
  * 桌面版 -> Tauri settings.json
  */
 async function setPanicColor(color) {
@@ -2959,11 +2956,8 @@ async function setPanicColor(color) {
             console.error('Failed to save panic color to Tauri settings:', e);
         }
     }
-    // 网页版：写入 localStorage 和 cookie (有效期 365 天)
+    // 网页版：写入 localStorage
     localStorage.setItem('panic-color', color);
-    var d = new Date();
-    d.setTime(d.getTime() + 365 * 24 * 60 * 60 * 1000);
-    document.cookie = 'panic-color=' + encodeURIComponent(color) + '; expires=' + d.toUTCString() + '; path=/';
 }
 
 /**
