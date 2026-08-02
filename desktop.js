@@ -359,7 +359,9 @@ $('input,textarea,*[contenteditable=true]').on('contextmenu', (e) => {
 // 给桌面上的图标加右键菜单
 function addMenu() {
     var parentDiv = $('#desktop')[0];
-    var childDivs = parentDiv.$$('#div');
+    // 必须是直接子 div：与 CSS 的 #desktop>div 一致，且用户自建项本身就是顶层 <div class="b">。
+    // 原写法是 '#div'（id 选择器），永远匹配 0 个元素，整个循环从不执行。
+    var childDivs = parentDiv.$$(':scope>div');
 
     for (var i = 0; i < childDivs.length; i++) {
         if (i <= 4) {//win12内置的5个图标不添加
@@ -372,7 +374,7 @@ function addMenu() {
                 return showcm(event, 'desktop.icon', [div.getAttribute('appname'), div.getAttribute('iconIndex')]);
             }
             return false;
-        }, useCapture = true);
+        }, true);
     }
 }
 var run_cmd = '';
@@ -2114,7 +2116,9 @@ for (let i = 1; i <= daysum; i++) {
 }
 function pinapp(id, name, command) {
     if ($('#startmenu-r>.pinned>.apps>.a.sm-app.' + id).length) return;
-    $('#startmenu-r>.pinned>.apps').append(`<a class='a sm-app enable ${id}' onclick='${command}';hide_startmenu();' oncontextmenu='return showcm(event,\"smapp\",[\"${id}\",\"${name}\"])'><img src='icon/${geticon(id)}'><p>${name}</p></a>`);
+    // 注意：command 本身已经带了 hide_startmenu()（见 cms 的 smapp 项），
+    // 原写法在属性外多写了一段 ;hide_startmenu();' —— 是无效的多余标记，渲染结果不变。
+    $('#startmenu-r>.pinned>.apps').append(`<a class='a sm-app enable ${id}' onclick='${command}' oncontextmenu='return showcm(event,\"smapp\",[\"${id}\",\"${name}\"])'><img src='icon/${geticon(id)}'><p>${name}</p></a>`);
 }
 
 // 应用方法
@@ -2290,7 +2294,7 @@ function openDockWidget(name) {
             }, 0);
         }
     } else {
-        console.err("openDockWidget() 传递的 name 不正确！");
+        console.error("openDockWidget() 传递的 name 不正确！");
     }
 }
 
@@ -2570,15 +2574,22 @@ function saveDesktop() {
 }
 //global
 const parentEl = $('#desktop')[0];
-let parentRect = parentEl.getBoundingClientRect();
 const cell = 83; // 单位尺寸
 const gap = 10; // 单位间隔
 const padding = 20; // 偏移
-const cols = Math.max(1, Math.floor((parentRect.width - padding * 2 + gap) / (cell + gap)));
-const rows = Math.max(1, Math.floor((parentRect.height - padding * 2 + gap) / (cell + gap)));
+// 原本这三个是 const，只在脚本执行期算一次，窗口 resize 后吸附网格就失效了。
+// 改成每次拖拽开始时重算（不放在 mousemove 里，避免逐帧触发 layout）。
+let parentRect, cols, rows;
+function refreshDesktopGrid() {
+    parentRect = parentEl.getBoundingClientRect();
+    cols = Math.max(1, Math.floor((parentRect.width - padding * 2 + gap) / (cell + gap)));
+    rows = Math.max(1, Math.floor((parentRect.height - padding * 2 + gap) / (cell + gap)));
+}
+refreshDesktopGrid();
 
 function desktopMove(elt, e) {
     if (!edit_mode) return;// 编辑模式有效
+    refreshDesktopGrid();// 桌面尺寸可能已变，重算吸附网格
     e = e || window.event;
     // 阻止桌面响应
     try { e.stopPropagation(); } catch (err) { }
@@ -2874,7 +2885,9 @@ if (localStorage.getItem('autoUpdate') == undefined) {
     localStorage.setItem('autoUpdate', true);
 }
 else {
-    autoUpdate = (autoUpdate == 'true');
+    // 原写法是 autoUpdate == 'true'，拿布尔变量去比字符串，恒为 false。
+    // 后果：desktop.html 的「自动更新」开关基于错误的初值取反，第一次点击取消勾选无效。
+    autoUpdate = (localStorage.getItem('autoUpdate') == 'true');
 }
 
 const urlParams = new URL(location.href).searchParams;
@@ -2921,6 +2934,8 @@ if (!location.href.match(/((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d|[1-9]\d|
     }
 }
 function sendToSw(msg) {
+    // 首次加载时 controller 可能尚未就绪（checkUpdate 会在注册完成前调用本函数）
+    if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
     navigator.serviceWorker.controller.postMessage(msg);
 }
 

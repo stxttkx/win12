@@ -98,6 +98,33 @@ node tools/regress/run.mjs                       # 与 ../win12-baseline 工作�
 
 ---
 
+## 4b. 两处「报告有 bug，实测没有」的更正【实测】
+
+探索阶段列出的 bug 清单里有两条经不起实测，记录在此以免日后又被「修」一遍：
+
+**① `pinapp` 的引号错位 —— 不是 bug。**
+`desktop.js:2117` 的模板确实写成了 `onclick='${command}';hide_startmenu();'`，读起来像是属性提前闭合。
+但实测渲染结果是：
+
+```
+onclick="openapp('calc');hide_startmenu();"
+oncontextmenu="return showcm(event,'smapp',['calc','计算器'])"
+```
+
+只有 3 个属性，全部正确。原因是 `command` 实参本身就已经带了 `hide_startmenu();`
+（见 `desktop.js:508` 的 cms `smapp` 项），而多出来的那段被 HTML 解析器吸收掉了。
+所以「固定到开始菜单的应用点开后菜单不关闭」这个说法**不成立**。
+本次只把多余标记删掉（渲染结果逐字节不变），不算行为修复。
+
+**② `openDockWidget` 的实参是 `'search-win'` 不是 `'search'`。**
+这条是**回归套件自己的 bug**，由套件在阶段 1 的 diff 中暴露出来：
+传 `'search'` 会落进 `else` 分支，看起来「跑过了」，其实搜索面板一次都没被测到。
+基线上表现为抛 `TypeError: console.err is not a function`（因为 `console.err` 不存在），
+修好 `console.err` 之后才显形为一条明确的错误日志。
+已修正实参，并加了守卫：一旦实参不被 `openDockWidget` 认识就记 `HARNESS_BUG`。
+
+> 教训：**套件报「无差异」不等于「测到了」**。任何走 `else`/兜底分支的调用都要显式报错。
+
 ## 5. 已知的基线噪音
 
 采集时有 4 条控制台错误，**基线与重构版完全相同**，属预期：

@@ -66,8 +66,11 @@ function hidewin(name, arg = 'window') {
         $('#dock-box').removeClass('hide');
     }
     if (arg == 'window') {
-        if (apps[name].remove) {
-            apps[name].remove();
+        // 与 openapp 一致：DOM 上是 kebab，apps 的 key 是 camel（code-editor → codeEditor）。
+        // 原写法直接用 apps[name]，对 code-editor / camera-notice 取到 undefined 后抛 TypeError。
+        const app = apps[name.replace(/-(\w)/g, (_, c) => c.toUpperCase())];
+        if (app && app.remove) {
+            app.remove();
         }
     }
 }

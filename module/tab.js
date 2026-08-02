@@ -1,6 +1,6 @@
 let m_tab={
     newtab: (appn,n) => {
-        app=apps[appn];
+        let app=apps[appn];
         app.tabs.push([app.len++, n]);
         m_tab.settabs(appn);
     },
@@ -95,7 +95,7 @@ let m_tab={
         $(t).addClass('moving');
     },
     close: (appn, c) => {
-        app=apps[appn];
+        let app=apps[appn];
         $(`.window.${appn}>.titbar>.tabs>.tab.${app.tabs[c][0]}`).addClass('close');
         for (let i = c + 1; i < app.tabs.length; i++) {
             const _id = app.tabs[i][0];
@@ -115,14 +115,14 @@ let m_tab={
     },
     tab: (appn,c,load=true) => {
         focwin(appn);
-        app=apps[appn];
+        let app=apps[appn];
         app.now = c;
         app.tab(c,load);
         $(`.window.${appn}>.titbar>.tabs>.tab.show`).removeClass('show');
         $(`.window.${appn}>.titbar>.tabs>.tab.${app.tabs[c][0]}`).addClass('show');
     },
     rename: (appn,n) => {
-        app=apps[appn];
+        let app=apps[appn];
         app.tabs[app.now][1] = n;
         m_tab.settabs(appn);
         m_tab.tab(appn,app.now,false);

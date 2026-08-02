@@ -221,17 +221,23 @@ const captureShellInteractions = page => page.evaluate(async () => {
         return { classes: e.className, display: cs.display, opacity: cs.opacity, transform: cs.transform };
     };
     const out = {};
-    for (const [name, sel] of [['start-menu', '#start-menu'], ['search', '#search-win'],
+    // 实参必须与 openDockWidget 的分支完全一致（是 'search-win' 不是 'search'）。
+    // 传错名字会落到 else 分支，看起来「跑过了」其实什么都没测到。
+    for (const [name, sel] of [['start-menu', '#start-menu'], ['search-win', '#search-win'],
                                ['widgets', '#widgets'], ['control', '#control'], ['datebox', '#datebox']]) {
         const errBefore = window.__errors.length;
         out[name] = { before: st(sel) };
-        try { window.openDockWidget(name === 'start-menu' ? 'start-menu' : name); } catch (e) { out[name].openThrew = String(e); }
+        try { window.openDockWidget(name); } catch (e) { out[name].openThrew = String(e); }
         await wait(300);
         out[name].after = st(sel);
-        try { window.openDockWidget(name === 'start-menu' ? 'start-menu' : name); } catch (e) { out[name].closeThrew = String(e); }
+        try { window.openDockWidget(name); } catch (e) { out[name].closeThrew = String(e); }
         await wait(300);
         out[name].afterToggleBack = st(sel);
         out[name].errors = window.__errors.slice(errBefore);
+        // 守卫：一旦实参不被 openDockWidget 认识，立刻显式记录，别让它悄悄溜过
+        if (out[name].errors.some(e => e.includes('传递的 name 不正确'))) {
+            out[name].HARNESS_BUG = `openDockWidget 不认识实参 '${name}'`;
+        }
     }
     // 主题切换来回一次，必须回到原状
     const themeBefore = document.documentElement.className;
@@ -266,14 +272,67 @@ const captureComputedStyles = (page, selectors, props) => page.evaluate((sels, p
     return out;
 }, selectors, props);
 
-const captureStorage = page => page.evaluate(() => {
+// cpuRunningTime 是 setInterval(…,1000) 的墙钟计数器，值取决于采集耗时，天生不可比
+const VOLATILE_KEYS = new Set(['cpuRunningTime']);
+
+const captureStorage = page => page.evaluate(volatile => {
     const out = {};
     for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        out[k] = localStorage.getItem(k);
+        out[k] = volatile.includes(k) ? '<volatile>' : localStorage.getItem(k);
     }
-    return { keys: Object.keys(out).sort(), values: out, writeOrder: window.__lsWrites };
-});
+    return {
+        keys: Object.keys(out).sort(),
+        values: out,
+        // 写入顺序里去掉墙钟计数器的重复写入，只保留首次出现
+        writeOrder: window.__lsWrites.filter((k, i, a) => !volatile.includes(k) || a.indexOf(k) === i),
+    };
+}, [...VOLATILE_KEYS]);
+
+/** 快照里可能混进 http://127.0.0.1:<port>（两棵树端口不同），统一抹平 */
+function normalizeOrigins(obj) {
+    const re = /https?:\/\/127\.0\.0\.1:\d+/g;
+    const walk = v => {
+        if (typeof v === 'string') return v.replace(re, 'ORIGIN');
+        if (Array.isArray(v)) return v.map(walk);
+        if (v && typeof v === 'object') {
+            const o = {};
+            for (const k of Object.keys(v)) o[k] = walk(v[k]);
+            return o;
+        }
+        return v;
+    };
+    return walk(obj);
+}
+
+/** 针对阶段 1 那几个「主快照测不到」的修复，用独立的种子状态单独验证 */
+async function captureTargetedFixes(browser, origin, locale) {
+    const page = await preparePage(browser, { locale });
+    // 种子：① 一个用户自建桌面图标（验证 addMenu）② autoUpdate=true（验证布尔比较）
+    const userIcon = `<div class='b' ondblclick=openapp('calc') ontouchstart=openapp('calc') appname='calc'><img src='icon/calc.svg'><p>REGRESS</p></div>`;
+    await page.evaluateOnNewDocument(`
+        localStorage.setItem('desktop', JSON.stringify([${JSON.stringify(userIcon)}]));
+        localStorage.setItem('autoUpdate', 'true');
+    `);
+    await bootDesktop(page, origin);
+    const out = await page.evaluate(() => {
+        const divs = [...document.querySelectorAll('#desktop>div')];
+        const userDiv = divs[5];
+        return {
+            // addMenu：修好选择器后，第 6 个（下标 5）图标必须被打上 iconIndex
+            desktopDirectDivCount: divs.length,
+            userIconPresent: !!userDiv,
+            userIconIndexAttr: userDiv ? userDiv.getAttribute('iconIndex') : null,
+            // autoUpdate：存的是 'true'，变量就该是 true（原写法恒为 false）
+            autoUpdateVar: window.__g('autoUpdate'),
+            autoUpdateStored: localStorage.getItem('autoUpdate'),
+            // 网格常量必须可重算
+            hasRefreshDesktopGrid: typeof window.__g('refreshDesktopGrid') === 'function',
+        };
+    });
+    await page.close();
+    return out;
+}
 
 // ---------------------------------------------------------------- 编排
 
@@ -298,9 +357,12 @@ export async function capture(browser, { origin, locale, label }) {
 
     snap.storage = await captureStorage(page);
     snap.allErrors = await page.evaluate(() => window.__errors.slice());
-
     await page.close();
-    return snap;
+
+    // 独立种子状态的定向验证（主快照覆盖不到的路径）
+    snap.targetedFixes = await captureTargetedFixes(browser, origin, locale);
+
+    return normalizeOrigins(snap);
 }
 
 export { STYLE_SELECTORS, STYLE_PROPS };
