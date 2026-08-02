@@ -145,7 +145,16 @@ async function captureApps(page) {
 
 /** 右键菜单：逐个渲染 + 逐个触发 handler。
  *  cms 的 payload 是「存成字符串的 JS」，只比对 HTML 抓不到全局被私有化的回归。 */
-const captureContextMenus = page => page.evaluate(async () => {
+// 有 4 个 cms 项是 arg => … 的函数，传 null 会抛异常、渲染为空——
+// 那正是内容最动态的 4 个，必须给出与真实调用点一致的实参。
+const CMS_ARGS = {
+    'desktop.icon': ['calc', 0],                       // [appname, iconIndex]
+    'smapp': ['calc', '计算器'],                        // [id, name]
+    'smlapp': ['calc', '计算器'],                       // [id, name]
+    'explorer.file': 'C:/Program Files/about.exe',      // 必须是虚拟文件系统里真实存在的路径
+};
+
+const captureContextMenus = page => page.evaluate(async (cmsArgs) => {
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const out = {};
     for (const id of Object.keys(window.__g('cms') || {})) {
@@ -153,7 +162,7 @@ const captureContextMenus = page => page.evaluate(async () => {
         const rec = { rendered: null, itemCount: 0, handlerErrors: [] };
         try {
             const fakeEvent = { clientX: 400, clientY: 300, preventDefault() {}, stopPropagation() {}, target: document.body };
-            window.showcm(fakeEvent, id, null);
+            window.showcm(fakeEvent, id, Object.prototype.hasOwnProperty.call(cmsArgs, id) ? cmsArgs[id] : null);
             await wait(80);
             const cm = document.querySelector('#cm');
             rec.rendered = cm ? cm.innerHTML : null;
@@ -174,10 +183,12 @@ const captureContextMenus = page => page.evaluate(async () => {
         } catch (e) { rec.handlerErrors.push('showcm threw: ' + String(e)); }
         try { document.querySelector('#cm').classList.remove('show', 'show-begin'); } catch {}
         rec.consoleErrors = window.__errors.slice(errBefore);
+        // 守卫：菜单渲染为空说明这一项根本没被测到，别让它冒充「无差异」
+        if (!rec.rendered || rec.itemCount === 0) rec.HARNESS_EMPTY = true;
         out[id] = rec;
     }
     return out;
-});
+}, CMS_ARGS);
 
 /** 通知/对话框：同上，逐个渲染 + 校验按钮 handler 引用的全局都还在 */
 const captureNotices = page => page.evaluate(async () => {
@@ -275,6 +286,49 @@ const captureComputedStyles = (page, selectors, props) => page.evaluate((sels, p
 // cpuRunningTime 是 setInterval(…,1000) 的墙钟计数器，值取决于采集耗时，天生不可比
 const VOLATILE_KEYS = new Set(['cpuRunningTime']);
 
+/** 阶段 2 的真正验收依据：遍历 29 个窗口内的**每一个元素**，逐个记计算样式摘要。
+ *  只看 ~30 个根选择器的话，像 defender.css 那 843 行、26 个硬编码色值，
+ *  全部改成变量也照样报「无差异」。窗口在 DOM 里始终存在（靠 display:none 隐藏），
+ *  颜色/圆角/阴影这些不依赖布局的属性照常可解析，所以无需先打开窗口。 */
+const TOKEN_PROPS = ['color', 'background-color', 'background-image', 'border-radius',
+    'box-shadow', 'border-top-color', 'border-top-width', 'border-top-style', 'opacity',
+    'font-size', 'font-weight', 'padding-top', 'padding-left', 'margin-top', 'outline-color',
+    'fill', 'stroke', 'backdrop-filter', 'transition-duration', 'transition-timing-function'];
+
+const captureDeepStyles = (page, props) => page.evaluate((ps) => {
+    const out = {};
+    const digest = el => {
+        const cs = getComputedStyle(el);
+        return ps.map(p => cs.getPropertyValue(p)).join('|');
+    };
+    // 生成稳定的元素路径（父链上的 tag + 同名兄弟序号），与 DOM 顺序无关地可读
+    const pathOf = (el, root) => {
+        const parts = [];
+        for (let n = el; n && n !== root; n = n.parentElement) {
+            const same = [...n.parentElement.children].filter(c => c.tagName === n.tagName);
+            parts.unshift(n.tagName.toLowerCase() + (same.length > 1 ? `[${same.indexOf(n)}]` : ''));
+        }
+        return parts.join('>');
+    };
+    for (const win of document.querySelectorAll('.window')) {
+        const id = win.classList[1];
+        const rec = {};
+        rec['(self)'] = digest(win);
+        for (const el of win.querySelectorAll('*')) rec[pathOf(el, win)] = digest(el);
+        out[id] = rec;
+    }
+    // shell 区域同样深走一遍
+    for (const sel of ['#dock-box', '#start-menu', '#search-win', '#widgets', '#control',
+                       '#datebox', '#cm', '#notice', '#desktop']) {
+        const root = document.querySelector(sel);
+        if (!root) continue;
+        const rec = { '(self)': digest(root) };
+        for (const el of root.querySelectorAll('*')) rec[pathOf(el, root)] = digest(el);
+        out[sel] = rec;
+    }
+    return out;
+}, props);
+
 const captureStorage = page => page.evaluate(volatile => {
     const out = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -344,6 +398,7 @@ export async function capture(browser, { origin, locale, label }) {
 
     // Pass 1 —— 静止态计算样式（不冻结过渡，否则量不到 transition）
     snap.computedStyles = await captureComputedStyles(page, STYLE_SELECTORS, STYLE_PROPS);
+    snap.deepStyles = await captureDeepStyles(page, TOKEN_PROPS);
     snap.bootErrors = await page.evaluate(() => window.__errors.slice());
 
     // Pass 2 —— 交互（冻结过渡让几何稳定）
