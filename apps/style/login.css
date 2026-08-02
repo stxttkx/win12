@@ -23,7 +23,7 @@
     width: 100px;
     padding: 5.5px 8px;
     color: #fff;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     font-size: 15.8px;
     text-align: center;
     border: 3px solid #00000000;
@@ -53,7 +53,7 @@
     color: #fff;
     background-color: #eeeeee40;
     border: 2px solid #ffffff50;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     outline: none;
     text-align: center;
 }
@@ -78,7 +78,7 @@
 
 :root.corner_squ #login {
     corner-shape: squircle;
-    border-radius: 15px;
+    border-radius: var(--radius-3xl);
 }
 
 #login-welc{
@@ -144,7 +144,7 @@
     justify-content: center;
     align-items: center;
     padding: 7px;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
 }
 
 #loginback .power>*:hover {

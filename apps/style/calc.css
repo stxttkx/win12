@@ -61,7 +61,7 @@
   font-size: 25px;
   text-align: center;
   transition: 40ms ease-in-out;
-  border-radius: 7px;
+  border-radius: var(--radius-lg);
   /* border: 1.5px solid #63636330; */
   box-shadow: 0px 1px 1px 1px var(--s3d);
   background: var(--card);
@@ -75,7 +75,7 @@
 
 :root.corner_squ #win-calc > .keyb > .b {
   corner-shape: squircle;
-  border-radius: 15px;
+  border-radius: var(--radius-3xl);
 }
 
 #win-calc > .keyb > .checked {

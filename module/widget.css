@@ -17,7 +17,7 @@
 }
 
 .wg {
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     box-shadow: 1px 2px 5px var(--shadow);
     overflow: hidden;
     transition: 200ms;
@@ -25,7 +25,7 @@
 
 :root.corner_squ .wg {
     corner-shape: squircle;
-    border-radius: 25px;
+    border-radius: var(--radius-pill);
 }
 
 .wg>.titbar {
@@ -34,7 +34,7 @@
 }
 
 .wg>.titbar>.more {
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     width: 25px;
     height: 25px;
     /* background-color: var(--bggrey); */
@@ -108,7 +108,7 @@
 }
 
 .wg.toolbar {
-    border-radius: 8px;
+    border-radius: var(--radius-xl);
     height: 100%;
     background-color: var(--contextmeu);
     backdrop-filter: blur(20px) saturate(1.5);

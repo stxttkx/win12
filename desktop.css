@@ -1,3 +1,4 @@
+@import "./styles/tokens.css";
 @import "./bootstrap-icons.css";
 @import "./base.css";
 
@@ -129,7 +130,7 @@ hr {
 }
 
 ::-webkit-scrollbar {
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     height: 14px;
     width: 14px;
 }
@@ -142,7 +143,7 @@ hr {
     background: #7f7f7f70;
     background-clip: padding-box;
     border: 6px solid transparent;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -184,7 +185,7 @@ list:not(.new)>a:active,
     border: none;
     border-bottom: 2.5px solid;
     border-bottom-color: #7f7f7f7f;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     padding: 3px 5px 3px 8px;
     outline: medium;
     width: 100%;
@@ -195,7 +196,7 @@ list:not(.new)>a:active,
 
 :root.corner_squ .input {
     corner-shape: squircle;
-    border-radius: 15px;
+    border-radius: var(--radius-3xl);
 }
 
 .input:hover {
@@ -226,7 +227,7 @@ input.foc {
 
 .btn {
     border: 0px solid;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     padding: 7px 10px;
     transition: 100ms;
     background-color: #00000000;
@@ -234,12 +235,12 @@ input.foc {
 
 :root.corner_squ .btn {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 .btn-icon {
     border: 0px solid;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     background-color: #00000000;
     font-size: 22px;
     height: 33px;
@@ -263,7 +264,7 @@ input.foc {
 
 .button {
     background-color: #9f9f9f40;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     padding: 6px 12px;
     cursor: default;
     text-align: center;
@@ -271,7 +272,7 @@ input.foc {
 
 :root.corner_squ .button {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 .button:hover {
@@ -293,7 +294,7 @@ input.foc {
 .buttons>* {
     display: inline-block;
     padding: 5px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-xl);
     margin: 0px 4px;
     transition: transform 400ms cubic-bezier(0.14, 1.02, 0.17, 0.03) !important;
     /* box-shadow: 2px 2px 4px var(--shadow); */
@@ -324,14 +325,14 @@ list {
     display: block;
     padding-left: 0;
     margin-bottom: 0;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
 }
 
 list>* {
     width: 100%;
     color: var(--text);
     text-align: inherit;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     position: relative;
     display: block;
     padding: 3px 24px;
@@ -371,7 +372,7 @@ list>hr {
     padding: 0 !important;
     margin: 2px 6px;
     background-color: #7f7f7f7f;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     height: 0.75px;
     cursor: inherit;
 }
@@ -456,7 +457,7 @@ list>span.focs.cl {
     text-align: center;
     z-index: 91;
     line-height:32px;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     -webkit-backdrop-filter: blur(20px) saturate(2);
     box-shadow: 0 1px 2px #44444460, 0px 3px 25px 1px var(--shadow);
     outline: 1px solid #99999950;
@@ -483,7 +484,7 @@ list>span.focs.cl {
 
 :root.corner_squ #open-dock {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 #open-dock>* {
@@ -492,7 +493,7 @@ list>span.focs.cl {
 }
 
 .dock {
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     height: 100%;
     background-color: var(--contextmeu);
     backdrop-filter: blur(20px) saturate(2);
@@ -510,7 +511,7 @@ list>span.focs.cl {
 
 :root.corner_squ .dock {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 .dock>* {
@@ -537,7 +538,7 @@ list>span.focs.cl {
 }
 
 #taskbar>a {
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     height: 34px;
     width: 38px;
     transition: 100ms;
@@ -888,7 +889,7 @@ list>span.focs.cl {
 #control{
     display: none;
     position: fixed;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
     background: var(--bg50);
     /* backdrop-filter: blur(60px) saturate(3) contrast(0.8); */
     backdrop-filter: saturate(4) contrast(0.8) blur(70px);
@@ -1109,7 +1110,7 @@ input-before {
 #startmenu-r>.tuijian {
     background-color: var(--card);
     box-shadow:  0px 1px 8px var(--s3d);
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     padding: 7px 10px;
 }
 
@@ -1119,7 +1120,7 @@ input-before {
     #startmenu-r>.pinned,
     #startmenu-r>.tuijian {
         corner-shape: squircle;
-        border-radius: 25px;
+        border-radius: var(--radius-pill);
     }
 }
 
@@ -1196,7 +1197,7 @@ input-before {
 #startmenu-user {
     height: 100px;
     width: 100px;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     position: relative;
     top: -50px;
     left: calc(50% - 50px);
@@ -1217,7 +1218,7 @@ input-before {
 .more-btn {
     background-image: linear-gradient(100deg, var(--theme-1), var(--theme-2));
     color: #fff;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     font-size: 12px;
     float: right;
     padding: 6px 10px;
@@ -1238,7 +1239,7 @@ input-before {
 .sm-app {
     width: 85px;
     height: 80px;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     text-align: center;
     transition: 80ms;
     padding: 0 3px;
@@ -1248,7 +1249,7 @@ input-before {
 
 :root.corner_squ .sm-app {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 .sm-app.enable {
@@ -1295,7 +1296,7 @@ input-before {
 .tj-obj {
     width: 50%;
     height: 55px;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     transition: 80ms;
     padding: 0 3px;
     display: flex;
@@ -1305,7 +1306,7 @@ input-before {
 
 :root.corner_squ .tj-obj {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 .tj-obj>img {
@@ -1366,7 +1367,7 @@ input-before {
     padding: 4px 7px 3px 7px;
     margin: 0 1px;
     text-align: center;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     transition: 100ms;
 }
 
@@ -1384,7 +1385,7 @@ input-before {
     width: calc(100% - 6px);
     left: 3px;
     height: 3px;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
 }
 
 #search-win>.ans {
@@ -1428,7 +1429,7 @@ input-before {
 
 #search-win>.ans>.view {
     flex-grow: 1;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     background: var(--card);
     padding: 3px;
     /* box-shadow: 0 3px 10px var(--s3d); */
@@ -1466,7 +1467,7 @@ input-before {
 }
 
 #search-win>.ans>.view>.option>list>a {
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     transition: 70ms !important;
     padding: 4px 12px;
     font-size: 14px;
@@ -1512,7 +1513,7 @@ input-before {
     display: flex;
     background-color: var(--bar);
     box-shadow: 0 1px 3px var(--shadow);
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     padding-left: 10px;
     justify-content: space-between;
     align-items: center;
@@ -1599,7 +1600,7 @@ input-before {
 }
 
 #widgets>.news>.content .card {
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     transition: 10ms;
     background-image: linear-gradient(#00000000, #111 90%);
     background-size: cover;
@@ -1718,7 +1719,7 @@ input-before {
     width: 100%;
     height: 100%;
     background-color: var(--hover-b);
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1727,7 +1728,7 @@ input-before {
 
 :root.corner_squ #control>.cont>.top>div>.icon {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 
@@ -1782,7 +1783,7 @@ input-before {
     width: calc(100% - 43px);
     height: 4.5px;
     background-image: linear-gradient(100deg, var(--theme-1), var(--theme-2));
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     display: inline-block;
 }
 
@@ -1796,12 +1797,12 @@ input-before {
     background-color: var(--bg);
     bottom: 0px;
     width: 0px;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
 }
 
 #control>.cont>.bottom>.brightness>.range-container>.slider-btn {
     height: 20px;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     background-image: linear-gradient(to top, var(--theme-1), var(--theme-2));
     position: relative;
     width: 20px;
@@ -1864,7 +1865,7 @@ input-before {
 #datebox>.cont>.body>* {
     width: 46.5px;
     height: 46.5px;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     text-align: center;
     padding-top: 10px;
 }
@@ -1900,7 +1901,7 @@ input-before {
     width: 85px;
     height: 84px;
     text-overflow: ellipsis;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     text-align: center;
     margin: 8px 10px 2px 10px;
     padding: 0 3px 3px 3px;
@@ -1911,7 +1912,7 @@ input-before {
 
 :root.corner_squ #desktop>div {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 #desktop>div:hover {
@@ -1945,7 +1946,7 @@ input-before {
     position: fixed;
     border: 2px solid var(--href);
     /* border-image: linear-gradient(120deg, var(--theme-1), var(--theme-2)) 4; */
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     background-color: var(--hover-half);
     display: none;
 }
@@ -1998,7 +1999,7 @@ input-before {
     display: none;
     background-color: #3daee922;
     border: 1px solid #3daee9;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
     box-shadow: none;
@@ -2055,7 +2056,7 @@ input-before {
 #desktop-editbar>* {
     transition: background-color 80ms;
     padding: 1px 7px;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
 }
 
 #desktop-editbar>*:hover {
@@ -2069,7 +2070,7 @@ input-before {
     display: none;
     position: absolute;
     z-index: 101;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     border: 1.5px solid #6f6f6f30;
     background: var(--contextmeu);
     backdrop-filter: blur(25px) saturate(2);
@@ -2084,7 +2085,7 @@ input-before {
 
 :root.corner_squ #cm {
     corner-shape: squircle;
-    border-radius: 25px;
+    border-radius: var(--radius-pill);
 }
 
 #cm.show {
@@ -2112,7 +2113,7 @@ input-before {
 #cm>list>a {
     padding: 4.5px 12px;
     margin: 1px 0;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     font-size: 15px;
     display: flex;
     line-height: 19px;
@@ -2142,7 +2143,7 @@ input-before {
     position: absolute;
     box-shadow: 3px 3px 6px 1px var(--shadow);
     z-index: 101;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     border: 1.5px solid #6f6f6f30;
     background: var(--contextmeu);
     backdrop-filter: blur(20px) saturate(2);
@@ -2165,7 +2166,7 @@ input-before {
     padding: 4.5px 10px;
     margin: 0;
     transition: 80ms;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
     font-size: 14px;
     display: flex;
     line-height: 19px;
@@ -2193,7 +2194,7 @@ input-before {
 #descp {
     position: fixed;
     background: var(--contextmeu);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     box-shadow: 2px 2px 10px var(--shadow);
     z-index: 102;
     border: 1.5px solid #4f4f4f30;
@@ -2209,7 +2210,7 @@ input-before {
 
 :root.corner_squ #descp {
     corner-shape: squircle;
-    border-radius: 15px;
+    border-radius: var(--radius-3xl);
 }
 
 #descp.show {
@@ -2231,7 +2232,7 @@ input-before {
     width: 430px;
     min-height: 150px;
     z-index: 100;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     box-shadow: 3px 3px 6px 1px var(--shadow);
     padding: 10px 20px;
     font-size: 15px;
@@ -2244,7 +2245,7 @@ input-before {
 
 :root.corner_squ .msg {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 .msg:hover {
@@ -2267,7 +2268,7 @@ input-before {
     min-width: 35px;
     padding-left: 6px;
     margin-right: -5px;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     font-size: 23px;
     transition: 100ms;
 }
@@ -2338,7 +2339,7 @@ input-before {
 
 :root.corner_squ #notice {
     corner-shape: squircle;
-    border-radius: 25px;
+    border-radius: var(--radius-pill);
 }
 
 #notice.show {
@@ -2381,14 +2382,14 @@ input-before {
     background-color: var(--msg);
     min-width: 100px;
     text-align: center;
-    border-radius: 8px;
+    border-radius: var(--radius-xl);
     transition: 50ms;
     box-shadow: 0 1px 3px 1px var(--s3d);
 }
 
 :root.corner_squ #notice>.btns>.btn {
     corner-shape: squircle;
-    border-radius: 15px;
+    border-radius: var(--radius-3xl);
 }
 
 #notice>.btns>.btn.main {
@@ -2413,7 +2414,7 @@ input-before {
     width: 70%;
     transform: scale(0.7);
     background-color: var(--unfoc);
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     border: 1.5px solid #6f6f6f30;
     display: none;
     opacity: 0;
@@ -2425,7 +2426,7 @@ input-before {
 
 :root.corner_squ .window {
     corner-shape: squircle;
-    border-radius: 20px;
+    border-radius: var(--radius-4xl);
 }
 
 :root.corner_squ .window.max {
@@ -2465,21 +2466,18 @@ input-before {
     opacity: 1;
 }
 
-.window.webapp.load,
-.window.webapp.content {
+.window.webapp.load {
     background: var(--unfoc);
 }
 
 .window.webapp.foc>.titbar {
     background-color: var(--bg70);
     backdrop-filter: blur(80px) saturate(1.3);
-    --webkit-backdrop-filter: blur(80px) saturate(1.3);
 }
 
 :root.mica .window.webapp.foc>.titbar {
     background: none;
     backdrop-filter: none;
-    --webkit-backdrop-filter: none;
 }
 
 .window.min {
@@ -2668,7 +2666,7 @@ github-red2026 */
     position: fixed;
     transition: all 300ms ease-in-out;
     margin: 10px;
-    border-radius: 10px;
+    border-radius: var(--radius-2xl);
     box-shadow: 0 0 10px 1px var(--shadow);
     border: 1.5px solid #6f6f6f30;
 }
@@ -2801,7 +2799,7 @@ github-red2026 */
 .save-item {
     white-space: nowrap;
     padding: 5px;
-    border-radius: 5px;
+    border-radius: var(--radius-sm);
     padding-top: 3px;
 }
 
@@ -2869,7 +2867,7 @@ body>.container>.image-container>.svg {
     margin-top: 10px;
     padding: 8px 24px;
     border: 1px solid var(--text);
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     background: transparent;
     color: var(--text);
     font-size: 14px;
@@ -2889,7 +2887,7 @@ body>.container>.image-container>.svg {
     -webkit-backdrop-filter: blur(20px) saturate(1.5);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 8px;
+    border-radius: var(--radius-xl);
     padding: 12px;
     display: none;
     z-index: 10000;
@@ -2924,7 +2922,7 @@ body>.container>.image-container>.svg {
     width: 280px;
     height: 180px;
     background: var(--hover);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     overflow: hidden;
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
