@@ -3275,6 +3275,14 @@ toggletheme() 切换主题
 		</div>
 	</div>
 
+	<!-- 数据与引导层，全部早于 desktop.js。顺序是承重的： -->
+	<!--   languages → i18n-boot（定义 lang/isTauriApp）→ 依赖它们求值的三张表 -->
+	<script defer src="data/languages.js"></script>
+	<script defer src="scripts/i18n-boot.js"></script>
+	<script defer src="data/app-icons.js"></script>
+	<script defer src="data/context-menus.js"></script>
+	<script defer src="data/notices.js"></script>
+	<script defer src="data/dock-panels.js"></script>
 	<script defer src="data/tasks.js"></script>
 	<script defer src="scripts/utils.js"></script>
 

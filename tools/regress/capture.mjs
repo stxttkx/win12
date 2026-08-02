@@ -74,7 +74,10 @@ const captureBootStructure = page => page.evaluate(() => {
         titbarPairingMismatches: wins.map((w, i) =>
             (titbars[i] && titbars[i].parentElement === w) ? null : `#${i} ${w.classList[1]}`
         ).filter(Boolean),
-        shellRegionIds: [...document.body.children].map(e => e.id || `.${e.className}`).filter(Boolean),
+        // 只记真正的 shell 区域；<script>/<style> 不是区域，否则拆分脚本就会造成假差异
+        shellRegionIds: [...document.body.children]
+            .filter(e => !['SCRIPT', 'STYLE', 'LINK'].includes(e.tagName))
+            .map(e => e.id || `.${e.className}`).filter(Boolean),
         htmlClass: document.documentElement.className,
         i18nApplied: (() => {
             const el = document.querySelector('[data-i18n="setting.name"]');
