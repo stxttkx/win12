@@ -475,6 +475,29 @@ async function captureTargetedFixes(browser, origin, locale) {
         return res;
     });
 
+    // 窗口标记搬进模板后的重建结果：位置、顺序、数量、占位元素是否清掉
+    out.windowMount = await page.evaluate(() => {
+        const wins = [...document.querySelectorAll('.window')];
+        return {
+            count: wins.length,
+            placeholderGone: !document.getElementById('window-mount'),
+            // 必须仍是 body 的直接子元素，且相对顺序不变
+            allDirectChildrenOfBody: wins.every(w => w.parentElement === document.body),
+            ids: wins.map(w => w.classList[1]),
+            // window.js 的下标配对（拖拽绑定的前提）
+            titbarAligned: wins.every((w, i) =>
+                document.querySelectorAll('.window>.titbar')[i]?.parentElement === w),
+            // Edge 收藏栏的 add_save 原本内联在窗口标记里，注入的 <script> 不会执行，
+            // 必须已被搬到 scripts/edge-bookmarks.js
+            addSaveIsFunction: typeof window.__g('add_save') === 'function',
+            // 窗口标记里那段 <style> 注入后应当照常生效
+            saveBarScrollbarHidden: (() => {
+                const el = document.getElementById('save-bar');
+                return el ? getComputedStyle(el).scrollbarWidth : null;
+            })(),
+        };
+    });
+
     await page.close();
     return out;
 }
