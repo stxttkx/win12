@@ -5,6 +5,22 @@
  * 依赖：langc（data/languages.js）、jQuery + jquery.i18n.properties（head 内同步加载）。
  */
 'use strict';
+
+/** 取翻译；键不存在时返回 null，而不是 jquery.i18n.properties 那个占位串 "[key]"。
+ *
+ * 修的问题：原实现无条件用 $.i18n.prop(key) 覆盖元素内容，而该函数对缺失键
+ * 返回 "[key]"，于是把 HTML 里本来写好的兜底文本冲掉，界面上直接显示 [edge.name]。
+ * 实测（en）有 31 个键属于这种情况——它们归 win12-locales 那个仓库维护，
+ * 本仓库补不了；但至少不该把兜底文本毁掉。
+ */
+function i18nOrNull(key) {
+    if (!key) return null;
+    const v = $.i18n.prop(key);
+    if (v === undefined || v === null) return null;
+    if (v === '[' + key + ']') return null;   // 缺失键的占位串
+    return v;
+}
+
 function loadlang(code) {
     $.i18n.properties({
         name: 'lang',
@@ -14,16 +30,13 @@ function loadlang(code) {
         callback: function () {
             $('[data-i18n]').each(function () {
                 // 标签的内容
-                // console.log($(this).data("i18n"));
-                // console.log($.i18n.prop($(this).data("i18n")));
-                // if($.i18n.prop($(this).data("i18n"))!=$(this).html())console.log($(this).data("i18n"),$(this).html());
-                $(this).html($.i18n.prop($(this).data("i18n")));
+                const v = i18nOrNull($(this).data('i18n'));
+                if (v !== null) $(this).html(v);
             });
             $('[data-i18n-attr]').each(function () {
                 // 标签的属性
-
-                // if($.i18n.prop($(this).data("i18n-key"))!=$(this).attr($(this).data("i18n-attr")))console.log($(this).data("i18n-key"),$(this).attr($(this).data("i18n-attr")));
-                $(this).attr($(this).data("i18n-attr"), $.i18n.prop($(this).data("i18n-key")));
+                const v = i18nOrNull($(this).data('i18n-key'));
+                if (v !== null) $(this).attr($(this).data('i18n-attr'), v);
             });
             updateAboutAppEntrypoints();
         }
