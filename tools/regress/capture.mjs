@@ -421,6 +421,26 @@ async function captureTargetedFixes(browser, origin, locale) {
             hasRefreshDesktopGrid: typeof window.__g('refreshDesktopGrid') === 'function',
         };
     });
+    // showcm 的「已有菜单打开时再开一个函数型菜单」路径：
+    // 原实现在该路径用了未声明的 ret，'use strict' 下必抛 ReferenceError。
+    out.reopenContextMenu = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        const ev = { clientX: 300, clientY: 200, preventDefault() {}, stopPropagation() {}, target: document.body };
+        const errBefore = window.__errors.length;
+        let threw = null;
+        try {
+            window.showcm(ev, 'desktop', null);          // 先开一个（字面量型）
+            await wait(60);
+            window.showcm(ev, 'smapp', ['calc', '计算器']); // 已打开状态下再开一个（函数型）
+            await wait(400);                              // 等过 200ms 的重绘延时
+        } catch (e) { threw = String(e); }
+        const cm = document.querySelector('#cm');
+        return {
+            threw,
+            errors: window.__errors.slice(errBefore),
+            itemCount: cm ? cm.querySelectorAll('a[onmousedown]').length : 0,
+        };
+    });
     await page.close();
     return out;
 }

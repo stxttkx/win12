@@ -288,44 +288,13 @@ var use_mic_voice = true;
     返回内容或为 'null' 表示跳过此项，或参考条目 2 的格式
 */
 
-function showcm(e, cl, arg) {
-    if ($('#cm').hasClass('show-begin')) {
-        setTimeout(() => {
-            $('#cm').css('left', e.clientX);
-            $('#cm').css('top', e.clientY);
-            let h = '';
-            cms[cl].forEach(item => {
-                if (typeof (item) == 'function') {
-                    arg.event = e;
-                    ret = item(arg);
-                    if (ret == 'null') return true;
-                    h += `<a class="a" onmousedown="${ret[1]}">${ret[0]}</a>\n`;
-                }
-                else if (typeof (item) == 'string') {
-                    h += item + '\n';
-                }
-                else {
-                    h += `<a class="a" onmousedown="${item[1]}">${item[0]}</a>\n`;
-                }
-            });
-            $('#cm>list')[0].innerHTML = h;
-            $('#cm').addClass('show-begin');
-            $('#cm>.foc').focus();
-            // .foc 是用来模拟焦点的，将焦点放在右键菜单上
-            setTimeout(() => {
-                $('#cm').addClass('show');
-            }, 0);
-            setTimeout(() => {
-                if (e.clientY + $('#cm')[0].offsetHeight > $('html')[0].offsetHeight) {
-                    $('#cm').css('top', e.clientY - $('#cm')[0].offsetHeight);
-                }
-                if (e.clientX + $('#cm')[0].offsetWidth > $('html')[0].offsetWidth) {
-                    $('#cm').css('left', $('html')[0].offsetWidth - $('#cm')[0].offsetWidth - 5);
-                }
-            }, 200);
-        }, 200);
-        return;
-    }
+// 渲染右键菜单。原先这段逻辑在 showcm 里被完整复制了两遍（「已有菜单打开」与
+// 「直接打开」两条路径），除缩进外只有一处差别，而那处差别是个 bug：
+// 已打开路径写的是 `ret = item(arg)`（未声明），desktop.js 是 'use strict'，
+// 于是「在已有菜单打开时再右键一个函数型菜单项」必抛 ReferenceError。
+// 受影响的是 cms 里四个函数型条目：desktop.icon / smapp / smlapp / explorer.file。
+// 同路径还有一句 `arg.event = e`，全仓库无人读取，且 arg 可能为 null，一并移除。
+function renderContextMenu(e, cl, arg) {
     $('#cm').css('left', e.clientX);
     $('#cm').css('top', e.clientY);
     let h = '';
@@ -345,6 +314,7 @@ function showcm(e, cl, arg) {
     $('#cm>list')[0].innerHTML = h;
     $('#cm').addClass('show-begin');
     $('#cm>.foc').focus();
+    // .foc 是用来模拟焦点的，将焦点放在右键菜单上
     setTimeout(() => {
         $('#cm').addClass('show');
     }, 0);
@@ -356,6 +326,17 @@ function showcm(e, cl, arg) {
             $('#cm').css('left', $('html')[0].offsetWidth - $('#cm')[0].offsetWidth - 5);
         }
     }, 200);
+}
+
+function showcm(e, cl, arg) {
+    // 已有菜单打开时，等它收起再重绘（原逻辑的 200ms 延时保持不变）
+    if ($('#cm').hasClass('show-begin')) {
+        setTimeout(() => {
+            renderContextMenu(e, cl, arg);
+        }, 200);
+        return;
+    }
+    renderContextMenu(e, cl, arg);
 }
 $('#cm>.foc').blur(() => {
     let x = event.target.parentNode;
