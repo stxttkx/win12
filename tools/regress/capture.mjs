@@ -502,6 +502,19 @@ async function captureTargetedFixes(browser, origin, locale) {
     return out;
 }
 
+/** 暗色模式下的逐元素计算样式。
+ *  套件原本只跑亮色，所以「某个元素在暗色下颜色不对」这类问题完全测不到。
+ *  用独立页面 + 预置 localStorage.theme='dark' 采集，避免污染主快照。 */
+async function captureDarkStyles(browser, origin, locale, props) {
+    const page = await preparePage(browser, { locale });
+    await page.evaluateOnNewDocument(`try { localStorage.setItem('theme', 'dark'); } catch (e) {}`);
+    await bootDesktop(page, origin);
+    const isDark = await page.evaluate(() => document.documentElement.classList.contains('dark'));
+    const styles = await captureDeepStyles(page, props);
+    await page.close();
+    return { isDark, styles };
+}
+
 // ---------------------------------------------------------------- 编排
 
 export async function capture(browser, { origin, locale, label }) {
@@ -531,6 +544,8 @@ export async function capture(browser, { origin, locale, label }) {
 
     // 独立种子状态的定向验证（主快照覆盖不到的路径）
     snap.targetedFixes = await captureTargetedFixes(browser, origin, locale);
+    // 暗色模式的逐元素计算样式
+    snap.darkStyles = await captureDarkStyles(browser, origin, locale, TOKEN_PROPS);
 
     return normalizeOrigins(snap);
 }

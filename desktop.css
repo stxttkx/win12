@@ -24,6 +24,8 @@
     --contextmeu: #f7f7f7bb;
     --bar: #efefef37;
     --hr: #ccc;
+    /* 计算器输入框的闪烁光标。亮色沿用原值 #111；暗色下原本是隐形的 */
+    --caret: #111;
     --unfoc: #eaeaea;
     --msg: #ffffffe7;
     --theme-1: #ad6eca;
@@ -52,6 +54,7 @@
     --contextmeu: #292929bb;
     --bar: #7272722a;
     --hr: #333;
+    --caret: #eee;
     --unfoc: #202020;
     --msg: #303030d0;
     --bd: #ffffff06;

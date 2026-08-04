@@ -1,9 +1,9 @@
 @keyframes shine {
     0% {
-        border-color: #111;
+        border-color: var(--caret);
     }
     49% {
-        border-color: #111;
+        border-color: var(--caret);
     }
     51% {
         border-color: transparent;
@@ -12,7 +12,7 @@
         border-color: transparent;
     }
     100% {
-        border-color: #111;
+        border-color: var(--caret);
     }
 }
 
@@ -180,7 +180,7 @@
 .wg.calc>.content>.container>input:focus {
     animation-name: shine;
     animation-duration: 1s;
-    border-color: #111;
+    border-color: var(--caret);
     animation-iteration-count: infinite;
 }
 
