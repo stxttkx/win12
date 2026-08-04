@@ -817,39 +817,10 @@ let apps = {
             }
         }
     },
-    vscode: {
-        init: () => {
-            return null;
-        },
-        load: () => {
-            // 不能改成 vscode.dev, 别问，问就算用不了
-            $('#win-vscode')[0].insertAdjacentHTML('afterbegin', '<iframe src="https://github1s.com/" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>');
-        }
-    },
-    bilibili: {
-        init: () => {
-            return null;
-        },
-        load: () => {
-            $('#win-bilibili')[0].insertAdjacentHTML('afterbegin', '<iframe src="https://bilibili.com/" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>');
-        }
-    },
-    'copilot': {
-        init: () => {
-            return null;
-        },
-        load: () => {
-            $('#win-copilot')[0].insertAdjacentHTML('afterbegin', '<iframe src="/chatgh/copilot.html" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>');
-        }
-    },
-    'minesweeper': {
-        init: () => {
-            return null;
-        },
-        load: () => {
-            $('#win-minesweeper')[0].insertAdjacentHTML('afterbegin', '<iframe src="https://win12-online.github.io/win12/games/minesweeper.html" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>');
-        }
-    },
+    vscode: createWebapp('vscode', 'https://github1s.com/'),
+    bilibili: createWebapp('bilibili', 'https://bilibili.com/'),
+    'copilot': createWebapp('copilot', '/chatgh/copilot.html'),
+    'minesweeper': createWebapp('minesweeper', 'https://win12-online.github.io/win12/games/minesweeper.html'),
     defender: {
         init: () => {
             return null;

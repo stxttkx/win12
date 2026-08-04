@@ -63,3 +63,19 @@ function createHistoryStack(appName, backSel, frontSel) {
         },
     };
 }
+
+/** iframe 型 webapp 包装器。vscode / bilibili / copilot / minesweeper 四个
+ *  原本是四段逐字相同的 9 行代码，只有容器 id 与 src 不同。
+ *  注意 windows12 与 wsa 形状不同（各自在 init 里另做处理），不属于这一类。 */
+function createWebapp(id, src) {
+    return {
+        init: () => {
+            return null;
+        },
+        load: () => {
+            document.getElementById('win-' + id)
+                .insertAdjacentHTML('afterbegin',
+                    `<iframe src="${src}" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>`);
+        }
+    };
+}
