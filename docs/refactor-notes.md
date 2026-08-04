@@ -194,6 +194,23 @@ oncontextmenu="return showcm(event,'smapp',['calc','计算器'])"
 把它们接进主题体系**会修好暗色模式下的显示**，但也**必然改变外观** ——
 这不是重构能顺带做的事，需要单独立项并由你确认。
 
+## 4f. 累计修掉的真 bug（全部由回归套件实测确认）
+
+重构过程中发现并修复的、在纯净 `main` 上真实存在的缺陷：
+
+| bug | 原因 | 实测证据 |
+|---|---|---|
+| 桌面自建快捷方式没有右键菜单 | `addMenu` 的选择器写成 `'#div'`（id 选择器），恒匹配 0 个 | `userIconIndexAttr`: `null` → `"0"` |
+| 关 code-editor / camera-notice 抛 TypeError | `hidewin` 用 `apps[name]`，`openapp` 用 camelCase | `closeThrew`: TypeError → `undefined` |
+| 「自动更新」开关第一次取消勾选无效 | `autoUpdate == 'true'` 拿布尔比字符串，恒 false | `autoUpdateVar`: `false` → `true` |
+| 窗口 resize 后桌面图标吸附网格失效 | `cols`/`rows` 是 const，只算一次 | `hasRefreshDesktopGrid`: `false` → `true` |
+| **已有菜单打开时再右键函数型菜单项必崩** | `showcm` 复制的那份函数体里 `ret = item(arg)` 未声明，`'use strict'` 下抛 ReferenceError | `reopenContextMenu.errors`: `ReferenceError: ret is not defined` → 无；`itemCount` 6 → 3 |
+| `console.err` 不是函数 | 应为 `console.error` | 由套件的 `openDockWidget` 守卫暴露 |
+| `module/tab.js` 隐式全局 `app` | 仅因该文件无 `'use strict'` 才能跑 | 无断言（见 4d） |
+
+最后一条的 `itemCount` 6 → 3 很能说明故障形态：异常中断了渲染，
+`innerHTML` 从未被写入，屏幕上留着**上一个**菜单的 6 个条目。
+
 ## 5. 已知的基线噪音
 
 采集时有 4 条控制台错误，**基线与重构版完全相同**，属预期：
