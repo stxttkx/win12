@@ -1696,58 +1696,6 @@ let apps = {
         // 禁止奇奇怪怪的缩进！尽量压行，不要毫无意义地全部格式化和展开！ 
         // 给我看蒙了这东西，写的是啥
         path: { folder: { 'C:': { folder: { 'Program Files': { folder: { 'WindowsApps': { folder: {}, file: [] }, 'Microsoft': { folder: {}, file: [] } }, file: [{ name: 'about.exe', ico: 'icon/about.svg', command: 'openapp(\'about\')' }, { name: 'setting.exe', ico: 'icon/setting.svg', command: 'openapp(\'setting\')' },] }, 'Program Files (x86)': { folder: { 'Microsoft': { folder: { 'Edge': { folder: { 'Application': { folder: { 'SetupMetrics': { folder: {}, file: [] } }, file: [{ name: 'msedge.exe', ico: 'icon/edge.svg', command: 'openapp(\'edge\')' }] } } } } } } }, 'Windows': { folder: { 'Boot': { folder: {}, file: [] }, 'System': { folder: {}, file: [] }, 'SysWOW64': { folder: {}, file: [] }, 'System32': { folder: {}, file: [{ name: 'calc.exe', ico: 'icon/calc.svg', command: 'openapp(\'calc\')' }, { name: 'cmd.exe', ico: 'icon/terminal.svg', command: 'openapp(\'terminal\')' }, { name: 'notepad.exe', ico: 'icon/notepad.svg', command: 'openapp(\'notepad\')' }, { name: 'taskmgr.exe', ico: 'icon/taskmgr.png', command: 'openapp(\'taskmgr\')' }, { name: 'winver.exe', ico: 'icon/about.svg', command: 'openapp(\'winver\')' },] } }, file: [{ name: 'explorer.exe', ico: 'icon/explorer.svg', command: 'apps.explorer.newtab()' }, { name: 'notepad.exe', ico: 'icon/notepad.svg', command: 'openapp(\'notepad\')' }, { name: 'py.exe', ico: 'icon/python.svg', command: 'openapp(\'python\')' },] }, '用户': { folder: { 'Administrator': { folder: { '推荐的项目': { folder: {}, file: [{ name: '瓶盖介绍.doc', ico: 'icon/files/word.png', command: 'openapp(\'word\');apps.word.edit()' }, { name: '瓶盖质量统计分析.xlsx', ico: 'icon/files/excel.png', command: '' },] }, '文档': { folder: { 'IISExpress': { folder: {}, file: [] }, 'PowerToys': { folder: {}, file: [] } }, file: [{ name: '瓶盖介绍.doc', ico: 'icon/files/word.png', command: '' }, { name: '瓶盖质量统计分析.xlsx', ico: 'icon/files/excel.png', command: '' },] }, '图片': { folder: { '本机照片': { folder: {}, file: [] }, '屏幕截图': { folder: {}, file: [] } }, file: [{ name: '瓶盖构造图.png', ico: 'icon/files/img.png', command: '' }, { name: '可口可乐瓶盖.jpg', ico: 'icon/files/img.png', command: '' },] }, 'AppData': { folder: { 'Local': { folder: { 'Microsoft': { folder: { 'Windows': { folder: { 'Fonts': {}, 'TaskManager': {}, 'Themes': {}, 'Shell': {}, '应用程序快捷方式': {}, } }, } }, 'Programs': { folder: { 'Python': { folder: { 'Python311': { folder: { 'DLLs': {}, 'Doc': {}, 'include': {}, 'Lib': { folder: { 'site-packages': {}, 'tkinter': {}, } }, 'libs': {}, 'Script': {}, 'share': {}, 'tcl': {}, 'Tools': {} }, file: [{ name: 'python.exe', ico: 'icon/python.png', command: 'openapp(\'python\')' }] } }, } } }, 'Temp': { folder: {} }, } }, 'LocalLow': { folder: { 'Microsoft': { folder: { 'Windows': {}, } }, } }, 'Roaming': { folder: { 'Microsoft': { folder: { 'Windows': { folder: { '「开始」菜单': { folder: { '程序': { folder: {} }, } }, } }, } }, } }, }, file: [] }, '音乐': { folder: { '录音机': { folder: {}, file: [] } } } } }, '公用': { folder: { '公用文档': { folder: { 'IISExpress': { folder: {}, file: [] }, 'PowerToys': { folder: {}, file: [] } }, file: [] }, '公用图片': { folder: { '本机照片': { folder: {}, file: [] }, '屏幕截图': { folder: {}, file: [] } }, file: [] }, '公用音乐': { folder: { '录音机': { folder: {}, file: [] } } } } } } } }, file: [] }, 'D:': { folder: { 'Microsoft': { folder: {}, file: [] } }, file: [{ name: '瓶盖结构说明.docx', ico: 'icon/files/word.png', command: '' }, { name: '可口可乐瓶盖历史.pptx', ico: 'icon/files/ppt.png', command: '' },] } } },
-        history: [],
-        historypt: [],
-        initHistory: (tab) => {
-            apps.explorer.history[tab] = [];
-            apps.explorer.historypt[tab] = -1;
-        },
-        pushHistory: (tab, u) => {
-            apps.explorer.history[tab].push(u);
-            apps.explorer.historypt[tab]++;
-        },
-        topHistory: (tab) => {
-            return apps.explorer.history[tab][apps.explorer.historypt[tab]];
-        },
-        popHistory: (tab) => {
-            apps.explorer.historypt[tab]--;
-            return apps.explorer.history[tab][apps.explorer.historypt[tab]];
-        },
-        incHistory: (tab) => {
-            apps.explorer.historypt[tab]++;
-            return apps.explorer.history[tab][apps.explorer.historypt[tab]];
-        },
-        delHistory: (tab) => {
-            apps.explorer.history[tab].splice(apps.explorer.historypt[tab] + 1, apps.explorer.history[tab].length - 1 - apps.explorer.historypt[tab]);
-        },
-        historyIsEmpty: (tab) => {
-            return apps.explorer.historypt[tab] <= 0;
-        },
-        historyIsFull: (tab) => {
-            return apps.explorer.historypt[tab] >= apps.explorer.history[tab].length - 1;
-        },
-        checkHistory: (tab) => {
-            if (apps.explorer.historyIsEmpty(tab)) {
-                $('#win-explorer>.path>.back').addClass('disabled');
-            }
-            else if (!apps.explorer.historyIsEmpty(tab)) {
-                $('#win-explorer>.path>.back').removeClass('disabled');
-            }
-            if (apps.explorer.historyIsFull(tab)) {
-                $('#win-explorer>.path>.front').addClass('disabled');
-            }
-            else if (!apps.explorer.historyIsFull(tab)) {
-                $('#win-explorer>.path>.front').removeClass('disabled');
-            }
-        },
-        back: (tab) => {
-            apps.explorer.goto(apps.explorer.popHistory(tab), false);
-            apps.explorer.checkHistory(tab);
-        },
-        front: (tab) => {
-            apps.explorer.goto(apps.explorer.incHistory(tab), false);
-            apps.explorer.checkHistory(tab);
-        }
     },
     calc: {
         init: () => {
@@ -2545,8 +2493,6 @@ Micrȯsoft Windows [版本 12.0.39035.7324]
         tabs: [],
         now: null,
         len: 0,
-        history: [],
-        historypt: [],
         reloadElt: '<loading class="reloading"><svg viewBox="0 0 16 16"><circle cx="8px" cy="8px" r="5px"></circle><circle cx="8px" cy="8px" r="5px"></circle></svg></loading>',
         max: false,
         fuls: false,
@@ -2697,56 +2643,6 @@ Micrȯsoft Windows [版本 12.0.39035.7324]
             }
 
         },
-        initHistory: (tab) => {
-            apps.edge.history[tab] = [];
-            apps.edge.historypt[tab] = -1;
-        },
-        pushHistory: (tab, u) => {
-            apps.edge.history[tab].push(u);
-            apps.edge.historypt[tab]++;
-        },
-        topHistory: (tab) => {
-            return apps.edge.history[tab][apps.edge.historypt[tab]];
-        },
-        popHistory: (tab) => {
-            apps.edge.historypt[tab]--;
-            return apps.edge.history[tab][apps.edge.historypt[tab]];
-        },
-        incHistory: (tab) => {
-            apps.edge.historypt[tab]++;
-            return apps.edge.history[tab][apps.edge.historypt[tab]];
-        },
-        delHistory: (tab) => {
-            apps.edge.history[tab].splice(apps.edge.historypt[tab] + 1, apps.edge.history[tab].length - 1 - apps.edge.historypt[tab]);
-        },
-        historyIsEmpty: (tab) => {
-            return apps.edge.historypt[tab] <= 0;
-        },
-        historyIsFull: (tab) => {
-            return apps.edge.historypt[tab] >= apps.edge.history[tab].length - 1;
-        },
-        checkHistory: (tab) => {
-            if (apps.edge.historyIsEmpty(tab)) {
-                $('#win-edge>.tool>.back').addClass('disabled');
-            }
-            else if (!apps.edge.historyIsEmpty(tab)) {
-                $('#win-edge>.tool>.back').removeClass('disabled');
-            }
-            if (apps.edge.historyIsFull(tab)) {
-                $('#win-edge>.tool>.front').addClass('disabled');
-            }
-            else if (!apps.edge.historyIsFull(tab)) {
-                $('#win-edge>.tool>.front').removeClass('disabled');
-            }
-        },
-        back: (tab) => {
-            apps.edge.goto(apps.edge.popHistory(tab), false);
-            apps.edge.checkHistory(tab);
-        },
-        front: (tab) => {
-            apps.edge.goto(apps.edge.incHistory(tab), false);
-            apps.edge.checkHistory(tab);
-        }
     },
     winver: {
         init: () => {
@@ -2790,3 +2686,8 @@ Micrȯsoft Windows [版本 12.0.39035.7324]
         },
     }
 };
+
+// 标签页历史栈：explorer 与 edge 原本各抄了一份完全相同的实现
+// （归一化 apps.explorer↔apps.edge 后逐行 diff，51 行里只有 4 行不同，全是按钮选择器）。
+Object.assign(apps.explorer, createHistoryStack('explorer', '#win-explorer>.path>.back', '#win-explorer>.path>.front'));
+Object.assign(apps.edge, createHistoryStack('edge', '#win-edge>.tool>.back', '#win-edge>.tool>.front'));

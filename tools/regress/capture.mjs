@@ -441,6 +441,40 @@ async function captureTargetedFixes(browser, origin, locale) {
             itemCount: cm ? cm.querySelectorAll('a[onmousedown]').length : 0,
         };
     });
+    // explorer 与 edge 共享同一套标签页历史栈（原本各抄了一份，归一化后只差 4 行选择器）。
+    // 脚本化跑一遍全部 13 个方法，记录状态机轨迹与按钮 disabled 状态。
+    out.historyStack = await page.evaluate(() => {
+        const APPS = window.__g('apps');
+        const res = {};
+        for (const [name, backSel, frontSel] of [
+            ['explorer', '#win-explorer>.path>.back', '#win-explorer>.path>.front'],
+            ['edge', '#win-edge>.tool>.back', '#win-edge>.tool>.front'],
+        ]) {
+            const a = APPS[name];
+            if (!a || !a.initHistory) { res[name] = 'missing'; continue; }
+            const trace = [];
+            const snap = tag => trace.push(`${tag}: pt=${a.historypt[9]} h=[${a.history[9]}] ` +
+                `back=${$(backSel).hasClass('disabled') ? 'off' : 'on'} ` +
+                `front=${$(frontSel).hasClass('disabled') ? 'off' : 'on'}`);
+            try {
+                a.initHistory(9); snap('init');
+                a.pushHistory(9, 'A'); snap('pushA');
+                a.pushHistory(9, 'B'); snap('pushB');
+                a.pushHistory(9, 'C'); snap('pushC');
+                trace.push('top=' + a.topHistory(9));
+                trace.push('isEmpty=' + a.historyIsEmpty(9) + ' isFull=' + a.historyIsFull(9));
+                a.checkHistory(9); snap('check');
+                trace.push('pop=' + a.popHistory(9)); snap('pop');
+                a.checkHistory(9); snap('check2');
+                trace.push('inc=' + a.incHistory(9)); snap('inc');
+                a.popHistory(9); a.delHistory(9); snap('del');
+                a.checkHistory(9); snap('check3');
+            } catch (e) { trace.push('THREW: ' + String(e)); }
+            res[name] = trace;
+        }
+        return res;
+    });
+
     await page.close();
     return out;
 }
