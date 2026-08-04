@@ -63,14 +63,41 @@ toggletheme() 切换主题
 
 壹 常规 app
 	1. 界面与 (伪) 后端的开发，js 在 module/apps.js 中，css 和资源文件在 apps/style 和 apps/icons 中
-	2. 绘制图标，存储于 icon 中，注意后缀名，参考 desktop.js 中 @icon 的说明
+	2. 绘制图标，存储于 icon 中，注意后缀名，参考 data/app-icons.js 中 @icon 的说明
 	3. 在开始菜单 (@#startmenu-l>list) 中添加你的应用
 
 贰 webapp，即使用 iframe 嵌套网页的应用：
 	1. 确保目标网页不阻止跨域嵌套，允许 iframe 嵌套
 	2. html 内容参考 @.window.bilibili.webapp
-	3. 在 module/apps.js 中参考 @apps[bilibili]
+	3. 在 module/apps.js 中写 createWebapp('你的 appid', '目标网址')，参考 @apps[bilibili]
 	4. 在 module/apps.js 中 @apps[webapps] 里补充 appid
+
+叁 文件布局（数据与代码已分离，改东西前先看这里）
+	data/languages.js      语言代码表 langc
+	data/app-icons.js      图标映射 icon、不可最大化 nomax、不可最小化 nomin
+	data/context-menus.js  右键菜单注册表 cms（配合 showcm 使用）
+	data/notices.js        通知/对话框注册表 nts（配合 shownotice 使用）
+	data/dock-panels.js    任务栏弹出面板注册表 dps
+	data/tasks.js          任务管理器进程表 taskmgrTasks
+	scripts/i18n-boot.js   lang() / isTauriApp() 等启动期函数
+	scripts/terminal-eggs.js 终端彩蛋（matrix / snow / dance / starwars）
+	module/shared.js       apps.js 内部的共享实现（createHistoryStack / createWebapp）
+	styles/tokens.css      设计令牌（圆角尺度、时长、缓动）
+
+肆 脚本加载顺序是承重的，改 desktop.html 末尾的 script 顺序前务必读懂：
+	languages → i18n-boot → app-icons → context-menus → notices → dock-panels
+	→ tasks → shared → apps → desktop.js → window → widget → tab
+	原因：cms 与 nts 的值里写着 ${lang(...)} 和 ${isTauriApp()}，
+	在对象字面量**求值时**就会执行，所以必须晚于 i18n-boot；
+	而 desktop.js 顶层又有一句 shownotice('about')，所以又必须早于 desktop.js。
+
+伍 CSS 主题的坑：:root 里 25 个变量中有 22 个是主题相关的（:root.dark 会覆盖）。
+	不要拿 --text / --bg / --hr 去替换硬编码的 #000 / #fff / #ccc ——
+	那会改变暗色模式下的表现。主题无关、可放心引用的只有 --theme-1 / --theme-2 / --href。
+
+陆 改完请跑回归：node tools/regress/run.mjs
+	它会对比纯净 main 与当前工作树的行为快照（29 个窗口、右键菜单、对话框、
+	终端命令、逐元素计算样式、localStorage），任何非预期差异都会列出来。
 
 欢迎补充~
 -->

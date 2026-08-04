@@ -37,13 +37,31 @@ this.addEventListener('fetch', function (event) {
   )
 });
 const cacheNames = ['def'];
+// 更新缓存时需要保留的大体积静态资源（很少变动，重下代价高）。
+//
+// 原实现有两个 bug，导致这五项里有四项**照样被删**：
+//   1. 写死了 /win12/ 前缀。GitHub Pages 部署在 /win12/ 下，但 wrangler.jsonc 把整个仓库
+//      挂在 Worker 根路径，index.html 也指向组织根域 —— 那些部署下五项全部匹配不上，
+//      于是每次 activate 都会清空整个缓存（img/ 2.8MB + fonts/ 344KB + jQuery + 图标字体）。
+//   2. 匹配用的是 RegExp(前缀 + '\\S+')，要求前缀**后面还得有字符**。
+//      对 jq.min.js、bootstrap-icons.css 这两个精确文件名而言，后面什么都没有，
+//      所以即使在 /win12/ 部署下也永远匹配不上。
+//
+// 改为按路径片段匹配，与部署基路径无关。
 let nochanges = [
-  '/win12/fonts/',
-  '/win12/img/',
-  '/win12/apps/icons/',
-  '/win12/scripts/jq.min.js',
-  '/win12/bootstrap-icons.css',
+  '/fonts/',
+  '/img/',
+  '/apps/icons/',
+  '/scripts/jq.min.js',
+  '/bootstrap-icons.css',
 ]
+
+/** 该 URL 是否属于「更新时保留」的资源 */
+function isProtected(url) {
+  let pathname;
+  try { pathname = new URL(url).pathname; } catch (e) { return false; }
+  return nochanges.some(function (seg) { return pathname.indexOf(seg) !== -1; });
+}
 let flag = false;
 
 function update(force = false) {
@@ -52,18 +70,7 @@ function update(force = false) {
       caches.open('def').then(cc => {
         cc.keys().then(key => {
           key.forEach(k => {
-            let fl = true;
-            if (force) {
-              console.log('删除数据', k.url);
-              return cc.delete(k);
-            }
-            nochanges.forEach(fi => {
-              if (RegExp(fi + '\\S+').test(k.url)) {
-                fl = false;
-                return;
-              }
-            });
-            if (fl) {
+            if (force || !isProtected(k.url)) {
               console.log('删除数据', k.url);
               return cc.delete(k);
             }
