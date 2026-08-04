@@ -362,6 +362,40 @@ function normalizeOrigins(obj) {
     return walk(obj);
 }
 
+/** 终端命令：runcmd 是 599 行的分支链，主快照完全没覆盖到。
+ *  逐条执行并记录终端输出摘要 + 是否抛异常。彩蛋会往页面里塞 DOM 与定时器，
+ *  所以每条命令后都清理，避免相互污染。 */
+const captureTerminalCommands = page => page.evaluate(async () => {
+    const wait = ms => new Promise(r => setTimeout(r, ms));
+    const CMDS = ['help', 'dir', 'ls', 'cls', 'systeminfo', 'hello', 'matrix', 'snow',
+                  'dance', 'starwars', 'calc', 'calc.exe', 'del a.txt', 'cd C:', 'ping',
+                  'notacommand'];
+    const out = {};
+    window.openapp('terminal');
+    await wait(400);
+    for (const cmd of CMDS) {
+        const errBefore = window.__errors.length;
+        const rec = {};
+        try {
+            $('#win-terminal>.text-cmd').html('');
+            rec.ret = window.runcmd(cmd, true);
+            await wait(120);
+            const t = $('#win-terminal>.text-cmd').text();
+            // 输出内容随时间/随机数变化，只记结构特征
+            rec.outLen = t.length;
+            rec.outHead = t.trim().slice(0, 60);
+        } catch (e) { rec.threw = String(e); }
+        rec.errors = window.__errors.slice(errBefore);
+        out[cmd] = rec;
+        // 清理彩蛋残留的容器
+        $('.matrix-container, #snow-container, #starwars-container').remove();
+        $('.window').removeClass('dancing');
+    }
+    window.hidewin('terminal');
+    await wait(200);
+    return out;
+});
+
 /** 针对阶段 1 那几个「主快照测不到」的修复，用独立的种子状态单独验证 */
 async function captureTargetedFixes(browser, origin, locale) {
     const page = await preparePage(browser, { locale });
@@ -411,6 +445,7 @@ export async function capture(browser, { origin, locale, label }) {
     snap.contextMenus = await captureContextMenus(page);
     snap.notices = await captureNotices(page);
     snap.apps = await captureApps(page);
+    snap.terminalCommands = await captureTerminalCommands(page);
     await thawTransitions(page);
 
     snap.storage = await captureStorage(page);
