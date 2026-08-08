@@ -19,6 +19,7 @@
 }
 
 #login {
+    appearance: none;
     background-color: #eeeeee40;
     width: 100px;
     padding: 5.5px 8px;
@@ -30,6 +31,9 @@
     transition: 50ms;
     margin-bottom: -40px;
     z-index: 1;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.5;
 }
 
 #login:hover {
@@ -43,6 +47,11 @@
     border-color: #00000000;
     background-color: #eeeeee70;
     transition: 80ms;
+}
+
+#login:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
 }
 
 #login-password {

@@ -102,8 +102,54 @@ function stop(e) {
 }
 
 let loginPasswordHasPassword = false;
+let loginPasswordStatus = 'pending';
+let loginFinishing = false;
+let startupNoticeShown = false;
+const LOGIN_BRIDGE_TIMEOUT_MS = 8000;
+
+function showStartupNoticeOnce() {
+    if (startupNoticeShown) return;
+    startupNoticeShown = true;
+    shownotice('about');
+}
+
+async function withLoginBridgeTimeout(promise, message) {
+    let timeoutId;
+    try {
+        return await Promise.race([
+            Promise.resolve(promise),
+            new Promise((resolve, reject) => {
+                timeoutId = setTimeout(() => reject(new Error(message)), LOGIN_BRIDGE_TIMEOUT_MS);
+            })
+        ]);
+    }
+    finally {
+        clearTimeout(timeoutId);
+    }
+}
+
+function isNativeLoginEnvironment() {
+    try {
+        if (window.win12Native && typeof window.win12Native.isTauri == 'function'
+            && window.win12Native.isTauri()) return true;
+    }
+    catch (e) { }
+    return !!(window.__TAURI__ && window.__TAURI__.core);
+}
+
+function requireLoginBridge(method) {
+    if (!window.win12Native || typeof window.win12Native[method] != 'function') {
+        throw new Error('本地密码服务尚未就绪');
+    }
+    return window.win12Native;
+}
 
 function win12FinishLogin() {
+    if (loginFinishing) return;
+    loginFinishing = true;
+    setLoginError('');
+    $('#login').prop('disabled', true);
+    $('#login-password').prop('disabled', true);
     $('#login').css('opacity', '0');
     $('#login-password').css('opacity', '0');
     $('#login-error').css('opacity', '0');
@@ -115,6 +161,7 @@ function win12FinishLogin() {
         }, 500);
         setTimeout(() => {
             $('#loginback').css('display', 'none');
+            showStartupNoticeOnce();
         }, 2000);
         if (use_music) {
             document.querySelector('audio#startup-music').play();
@@ -127,13 +174,26 @@ function setLoginError(text) {
 }
 
 async function initLoginPassword() {
-    if (window.win12Native && window.win12Native.isTauri() && (new URL(location.href)).searchParams.get('skip_login') !== '1') {
+    const isNative = isNativeLoginEnvironment();
+    if (isNative && (new URL(location.href)).searchParams.get('skip_login') !== '1') {
+        loginPasswordStatus = 'pending';
+        $('#loginback').addClass('tauri-password');
+        $('#login-password').prop('disabled', true);
+        setLoginError('正在读取本地密码状态');
         try {
-            const status = await window.win12Native.getLoginPasswordStatus();
-            loginPasswordHasPassword = !!(status && status.has_password);
+            const status = await withLoginBridgeTimeout(
+                requireLoginBridge('getLoginPasswordStatus').getLoginPasswordStatus(),
+                '读取本地密码状态超时'
+            );
+            if (!status || typeof status.has_password != 'boolean') {
+                throw new Error('本地密码状态响应无效');
+            }
+            loginPasswordHasPassword = status.has_password;
+            loginPasswordStatus = loginPasswordHasPassword ? 'has-password' : 'no-password';
             if (loginPasswordHasPassword) {
                 $('#loginback').addClass('tauri-password');
-                $('#login-password').attr('placeholder', '密码');
+                $('#login-password').prop('disabled', false).attr('placeholder', '密码');
+                setLoginError('');
                 $('#login-password').focus();
             }
             else {
@@ -141,21 +201,37 @@ async function initLoginPassword() {
             }
         }
         catch (e) {
+            loginPasswordStatus = 'error';
             setLoginError('无法读取本地密码状态');
         }
+        finally {
+            $('#login').css('pointer-events', 'auto');
+        }
+    }
+    else {
+        loginPasswordStatus = 'not-required';
     }
 }
 
 async function win12LoginSubmit() {
-    if (!(window.win12Native && window.win12Native.isTauri())) {
+    if (!isNativeLoginEnvironment()) {
         win12FinishLogin();
         return;
     }
 
-    if (!loginPasswordHasPassword) {
+    if (loginPasswordStatus == 'pending') {
+        setLoginError('正在读取本地密码状态');
+        return;
+    }
+    if (loginPasswordStatus == 'error') {
+        await initLoginPassword();
+        if (loginPasswordStatus == 'error' || loginPasswordStatus == 'pending') return;
+    }
+    if (loginPasswordStatus == 'no-password' || loginPasswordStatus == 'not-required') {
         win12FinishLogin();
         return;
     }
+    if (loginPasswordStatus != 'has-password') return;
 
     const password = $('#login-password').val();
     if (!password) {
@@ -168,8 +244,11 @@ async function win12LoginSubmit() {
     setLoginError('正在验证');
 
     try {
-        const result = await window.win12Native.verifyLoginPassword(password);
-        if (result && result.ok) {
+        const result = await withLoginBridgeTimeout(
+            requireLoginBridge('verifyLoginPassword').verifyLoginPassword(password),
+            '验证密码超时'
+        );
+        if (result && !Array.isArray(result) && typeof result == 'object' && result.ok === true) {
             $('#login-password').val('');
             win12FinishLogin();
             return;
@@ -186,7 +265,7 @@ async function win12LoginSubmit() {
 }
 
 async function win12RefreshPasswordSettingStatus() {
-    if (!(window.win12Native && window.win12Native.isTauri())) {
+    if (!isNativeLoginEnvironment()) {
         $('#setting-password-status').text('仅 Tauri App 可用');
         $('#setting-password-current').hide();
         $('#setting-password-new').prop('disabled', true);
@@ -195,8 +274,15 @@ async function win12RefreshPasswordSettingStatus() {
     }
 
     try {
-        const status = await window.win12Native.getLoginPasswordStatus();
-        loginPasswordHasPassword = !!(status && status.has_password);
+        const status = await withLoginBridgeTimeout(
+            requireLoginBridge('getLoginPasswordStatus').getLoginPasswordStatus(),
+            '读取本地密码状态超时'
+        );
+        if (!status || typeof status.has_password != 'boolean') {
+            throw new Error('本地密码状态响应无效');
+        }
+        loginPasswordHasPassword = status.has_password;
+        loginPasswordStatus = loginPasswordHasPassword ? 'has-password' : 'no-password';
         $('#setting-password-status').text(loginPasswordHasPassword ? '已设置密码' : '未设置密码');
         $('#setting-password-current')[loginPasswordHasPassword ? 'show' : 'hide']();
         $('#setting-password-current').val('');
@@ -205,13 +291,21 @@ async function win12RefreshPasswordSettingStatus() {
         $('#setting-password-submit').removeClass('disabled');
     }
     catch (e) {
+        loginPasswordStatus = 'error';
         $('#setting-password-status').text(String(e));
+        $('#setting-password-new').prop('disabled', true);
+        $('#setting-password-submit').addClass('disabled');
     }
 }
 
 async function win12SetLoginPassword() {
-    if (!(window.win12Native && window.win12Native.isTauri())) {
+    if (!isNativeLoginEnvironment()) {
         $('#setting-password-status').text('仅 Tauri App 可用');
+        return;
+    }
+    if (loginPasswordStatus != 'has-password' && loginPasswordStatus != 'no-password') {
+        $('#setting-password-status').text('请先重新读取密码状态');
+        await win12RefreshPasswordSettingStatus();
         return;
     }
 
@@ -233,7 +327,13 @@ async function win12SetLoginPassword() {
     $('#setting-password-status').text(clearingPassword ? '正在清除' : '正在保存');
 
     try {
-        await window.win12Native.setLoginPassword(loginPasswordHasPassword ? currentPassword : null, newPassword);
+        await withLoginBridgeTimeout(
+            requireLoginBridge('setLoginPassword').setLoginPassword(
+                loginPasswordHasPassword ? currentPassword : null,
+                newPassword
+            ),
+            '保存本地密码超时'
+        );
         await win12RefreshPasswordSettingStatus();
         $('#setting-password-status').text(clearingPassword ? '密码已清空' : '密码已保存');
     }
@@ -338,8 +438,8 @@ function showcm(e, cl, arg) {
     }
     renderContextMenu(e, cl, arg);
 }
-$('#cm>.foc').blur(() => {
-    let x = event.target.parentNode;
+$('#cm>.foc').blur((event) => {
+    let x = event.currentTarget.parentNode;
     $(x).removeClass('show');
     setTimeout(() => {
         $(x).removeClass('show-begin');
@@ -419,9 +519,10 @@ document.querySelectorAll('*[win12_title]:not(.notip)').forEach(a => {
     a.addEventListener('mouseleave', hidedescp);
 });
 function showdescp(e) {
+    if ($('#notice-back').hasClass('show')) return;
     $(e.target).attr('data-descp', 'waiting');
     setTimeout(() => {
-        if ($(e.target).attr('data-descp') == 'hide') {
+        if ($('#notice-back').hasClass('show') || $(e.target).attr('data-descp') == 'hide') {
             return;
         }
         $(e.target).attr('data-descp', 'show');
@@ -452,22 +553,117 @@ function hidedescp(e) {
 /* 参考 desktop.html 开头信息，
 格式、功能较简单，自行研究，不作赘述*/
 
+let noticePreviousFocus = null;
+let noticeOpenTimer = null;
+let noticeCloseTimer = null;
+let noticeInertElements = [];
+
+function dismissTransientOverlaysForModal() {
+    // These layers normally close via blur/mouseleave, but making their parent
+    // inert can suppress that event.  Leaving a higher-z-index inert overlay
+    // visible would recreate a "visible but unclickable" surface above modal.
+    $('#cm, #dp, #descp').removeClass('show show-begin');
+    $('#taskbar-preview').removeClass('show');
+    $('[data-descp]').attr('data-descp', 'hide');
+}
+
+function getNoticeFocusable() {
+    return [...document.querySelectorAll(
+        '#notice button:not([disabled]), #notice a[href], #notice input:not([disabled]), ' +
+        '#notice textarea:not([disabled]), #notice select:not([disabled]), #notice [tabindex]:not([tabindex="-1"])'
+    )].filter(element => getComputedStyle(element).display !== 'none');
+}
+
+function handleNoticeKeydown(event) {
+    if (!$('#notice-back').hasClass('show')) return;
+    if ((event.key === 'Enter' || event.key === ' ')
+        && event.target.matches('#notice a[role="button"]')) {
+        event.preventDefault();
+        event.target.click();
+        return;
+    }
+    if (event.key !== 'Tab') return;
+    const focusable = getNoticeFocusable();
+    if (!focusable.length) {
+        event.preventDefault();
+        document.getElementById('notice').focus();
+        return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!document.getElementById('notice').contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+    }
+    else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    }
+    else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+document.addEventListener('keydown', handleNoticeKeydown);
+
 function shownotice(name) {
+    clearTimeout(noticeOpenTimer);
+    clearTimeout(noticeCloseTimer);
+    dismissTransientOverlaysForModal();
+    const noticeBack = document.getElementById('notice-back');
+    noticeBack.inert = false;
+    const wasOpen = $('#notice-back').hasClass('show');
+    if (!wasOpen) {
+        noticePreviousFocus = document.activeElement;
+        noticeInertElements = [...document.body.children]
+            .filter(element => element !== noticeBack && !element.inert);
+        noticeInertElements.forEach(element => { element.inert = true; });
+    }
     $('#notice>.cnt').html(nts[name].cnt);
     let tmp = '';
     nts[name].btn.forEach(btn => {
-        tmp += `<a class="a btn ${btn.type}" onclick="${btn.js}">${btn.text}</a>`;
+        tmp += `<button type="button" class="a btn ${btn.type}" onclick="${btn.js}">${btn.text}</button>`;
     });
     $('#notice>.btns').html(tmp);
-    $('#notice-back').addClass('show');
-    setTimeout(() => {
+    const notice = document.getElementById('notice');
+    const title = notice.querySelector('.cnt>.tit');
+    notice.setAttribute('role', 'dialog');
+    notice.setAttribute('aria-modal', 'true');
+    notice.setAttribute('tabindex', '-1');
+    if (title) {
+        title.id = 'notice-title';
+        notice.setAttribute('aria-labelledby', title.id);
+    }
+    else {
+        notice.removeAttribute('aria-labelledby');
+    }
+    $('#notice a:not([href])').attr({ role: 'button', tabindex: '0' });
+    $('#notice-back').attr('aria-hidden', 'false').addClass('show');
+    noticeOpenTimer = setTimeout(() => {
+        noticeOpenTimer = null;
         $('#notice').addClass('show');
+        const focusable = getNoticeFocusable();
+        (focusable[0] || notice).focus();
     }, 200);
 }
 function closenotice() {
+    clearTimeout(noticeOpenTimer);
+    noticeOpenTimer = null;
     $('#notice').removeClass('show');
-    setTimeout(() => {
+    clearTimeout(noticeCloseTimer);
+    noticeCloseTimer = setTimeout(() => {
+        noticeCloseTimer = null;
         $('#notice-back').removeClass('show');
+        const noticeBack = document.getElementById('notice-back');
+        const notice = document.getElementById('notice');
+        if (notice.contains(document.activeElement)) document.activeElement.blur();
+        noticeBack.inert = true;
+        noticeInertElements.forEach(element => { element.inert = false; });
+        noticeInertElements = [];
+        if (noticePreviousFocus && noticePreviousFocus.isConnected) noticePreviousFocus.focus();
+        noticePreviousFocus = null;
+        $('#notice-back').attr('aria-hidden', 'true');
+        focusHighestBlockingLayer();
     }, 200);
 }
 
@@ -1130,6 +1326,7 @@ function setBatteryTooltip(title) {
     if (el) {
         el.setAttribute('win12_title', title);
         el.setAttribute('title', title);
+        el.setAttribute('aria-label', title);
     }
 }
 
@@ -1143,7 +1340,7 @@ function setBatteryUnavailableTooltip() {
     setBatteryTooltip(lang('无法获取电量', 'battery.unavailable'));
 }
 
-if (navigator.getBattery) {
+if (!isTauriApp() && navigator.getBattery) {
     navigator.getBattery().then((battery) => {
         // 检查 battery 对象和 level 属性是否存在且有效
         if (battery && typeof battery.level === 'number' && !isNaN(battery.level)) {
@@ -1187,7 +1384,7 @@ if (navigator.getBattery) {
         console.log('电池 API 不可用：', error);
         setBatteryUnavailableTooltip();
     });
-} else {
+} else if (!isTauriApp()) {
     setBatteryUnavailableTooltip();
 }
 
@@ -1369,26 +1566,60 @@ function attachDesktopDrag() {
     if (!parent) return;
     const children = Array.from(parent.children).filter(n => n.tagName.toLowerCase() === 'div' || n.tagName.toLowerCase() === 'a');
     children.forEach(ch => {
+        if (ch.dataset.desktopDragBound === 'true') return;
+        ch.dataset.desktopDragBound = 'true';
         ch.ondragstart = () => false;
+        const originalMouseDown = ch.onmousedown;
+        const originalTouchStart = ch.ontouchstart;
+        const touchFallback = ch.onclick || ch.ondblclick;
         ch.onmousedown = (e) => {
+            if (!edit_mode) {
+                return originalMouseDown ? originalMouseDown.call(ch, e) : undefined;
+            }
             //防止桌面响应
             try { e.stopPropagation(); } catch (err) { }
             try { e.preventDefault(); } catch (err) { }
             desktopMove(ch, e);
+            return false;
         };
         ch.ontouchstart = (e) => {
+            if (!edit_mode) {
+                if (originalTouchStart) return originalTouchStart.call(ch, e);
+                // Some desktop Chromium builds do not expose ontouchstart as a
+                // compiled DOM property even when the inline attribute exists.
+                // Reuse the icon's normal click/double-click action in that case.
+                if (touchFallback) {
+                    try { e.preventDefault(); } catch (err) { }
+                    return touchFallback.call(ch, e);
+                }
+                return undefined;
+            }
             try { e.stopPropagation(); } catch (err) { }
             try { e.preventDefault(); } catch (err) { }
             desktopMove(ch, e);
+            return false;
         };
     });
 }
+function readStoredArray(key) {
+    const value = localStorage.getItem(key);
+    if (value === null) return null;
+    try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+    }
+    catch (e) { }
+    localStorage.removeItem(key);
+    return null;
+}
 function setIcon() {
     // return;
-    if (!Array.isArray(JSON.parse(localStorage.getItem('desktop')))) {
-        setData('desktop', '[]')
+    let storedDesktop = readStoredArray('desktop');
+    if (storedDesktop === null) {
+        storedDesktop = [];
+        setData('desktop', '[]');
     }
-    if (Array.isArray(JSON.parse(localStorage.getItem('desktop')))) {
+    if (storedDesktop !== null) {
         $('#desktop')[0].innerHTML = `<div ondblclick="openapp('explorer');" ontouchstart="openapp('explorer');" oncontextmenu="return showcm(event,'desktop.icon',['explorer',-1]);" appname="explorer">
         <img src="apps/icons/explorer/thispc.svg">
         <p>${lang('此电脑', 'explorer.thispc')}</p>
@@ -1412,20 +1643,22 @@ function setIcon() {
     <span class="selection">
     </span>
     <p style="background-color: rgba(11,45,14,0);z-index:1;position: absolute;top:0px;left:0px;height:100%;width:100%" oncontextmenu="return showcm(event,'desktop');"></p>`;
-        desktopItem = JSON.parse(localStorage.getItem('desktop'));
+        desktopItem = storedDesktop;
         desktopItem.forEach((item) => {
             $('#desktop')[0].innerHTML += item;
         });
         addMenu();
     }
-    if (Array.isArray(JSON.parse(localStorage.getItem('topmost')))) {
-        topmost = JSON.parse(localStorage.getItem('topmost'));
+    const storedTopmost = readStoredArray('topmost');
+    if (storedTopmost !== null) {
+        topmost = storedTopmost;
         if (topmost.includes('taskmgr')) {
             $('#tsk-setting-topmost')[0].checked = true;
         }
     }
-    if (Array.isArray(JSON.parse(localStorage.getItem('sys_setting')))) {
-        var sys_setting_back = JSON.parse(localStorage.getItem('sys_setting'));
+    const storedSystemSettings = readStoredArray('sys_setting');
+    if (storedSystemSettings !== null) {
+        var sys_setting_back = storedSystemSettings;
         if (/^(1|0)+$/.test(sys_setting_back.join(''))/* 只含有 0 和 1 */) {
             sys_setting = sys_setting_back;
             for (var i = 0; i < sys_setting.length; i++) {
@@ -1470,16 +1703,28 @@ function setIcon() {
             root.removeClass('corner_squ');
         }
     }
+    attachDesktopDrag();
 }
 
-// 原神，启动！
-document.getElementsByTagName('body')[0].onload = () => {
+// Core shell startup must not wait for optional CDN scripts.  desktop.html
+// calls this after the local deferred modules have executed; load remains a
+// fallback for older/custom entry pages.
+let win12Started = false;
+function win12Start() {
+    if (win12Started) return;
+    win12Started = true;
     setTimeout(() => {
         $('#loadback').addClass('hide');
     }, 500);
     setTimeout(() => {
         $('#loadback').css('display', 'none');
-    }, 1000);
+        if ((new URL(location.href)).searchParams.get('skip_login') === '1') {
+            showStartupNoticeOnce();
+        }
+        else {
+            focusHighestBlockingLayer();
+        }
+    }, 750);
     apps.webapps.init();
     initLoginPassword();
     //getdata
@@ -1515,7 +1760,6 @@ document.getElementsByTagName('body')[0].onload = () => {
         $(':root').css('--theme-2', localStorage.getItem('color2'));
     }
     setIcon();//加载桌面图标
-	attachDesktopDrag();
     // 所以这个东西为啥要在开机的时候加载？
     // 不应该在 python.init 里面吗？
     //     (async function () {
@@ -1566,7 +1810,8 @@ document.getElementsByTagName('body')[0].onload = () => {
     updateVoiceBallStatus();
     // loadlang();
     checkOrientation();
-};
+}
+window.addEventListener('load', win12Start, { once: true });
 
 let autoUpdate = true;
 function checkUpdate() {
@@ -1599,8 +1844,8 @@ if (urlParams.get('skip_login') !== '1') {
     $('#loginback').css('display', 'flex');
 }
 
-// 共用同一个开机提示；根据运行环境在 nts.about 中选择对应名称。
-shownotice('about');
+// About 是模态框，会把背景设为 inert。正常路径在 win12FinishLogin() 隐藏
+// 登录层后打开；skip_login 路径由 win12Start() 在启动遮罩隐藏后打开。
 // PWA 应用
 if (!location.href.match(/((\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d|[1-9]\d|1\d\d|2[0-4]\d|25[0-5])(?::(?:[0-9]|[1-9][0-9]{1,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5]))/) && !location.href.match('localhost') && !urlParams.get('develop')) {
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none', scope: './' }).then(reg => {
@@ -1706,8 +1951,83 @@ function calcTimeString(second) {
 }
 
 //监听全局按键
+function isVisibleBlockingLayer(element) {
+    if (!element) return false;
+    const style = getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden'
+        && element.getClientRects().length > 0;
+}
+
+function getHighestBlockingLayer() {
+    const noticeBack = document.getElementById('notice-back');
+    if (noticeBack && noticeBack.classList.contains('show')) return noticeBack;
+    for (const id of ['loadback', 'orientation-warning', 'loginback']) {
+        const element = document.getElementById(id);
+        if (isVisibleBlockingLayer(element)) return element;
+    }
+    return null;
+}
+
+function getBlockingLayerFocusable(layer) {
+    if (!layer) return [];
+    return [...layer.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), a[href], select:not([disabled]), ' +
+        'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )].filter(element => isVisibleBlockingLayer(element));
+}
+
+function focusHighestBlockingLayer() {
+    const layer = getHighestBlockingLayer();
+    if (!layer || layer.id === 'notice-back' || layer.id === 'loadback') return;
+    const focusable = getBlockingLayerFocusable(layer);
+    (focusable[0] || layer).focus({ preventScroll: true });
+}
+
+function handleBlockingLayerKeydown(event) {
+    if (event.key !== 'Tab') return;
+    const layer = getHighestBlockingLayer();
+    if (!layer || layer.id === 'notice-back') return;
+    if (layer.id === 'loadback') {
+        event.preventDefault();
+        return;
+    }
+    const focusable = getBlockingLayerFocusable(layer);
+    if (!focusable.length) {
+        event.preventDefault();
+        layer.focus({ preventScroll: true });
+        return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (!layer.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus({ preventScroll: true });
+    }
+    else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+    }
+    else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus({ preventScroll: true });
+    }
+}
+
+function handleBlockingLayerFocus(event) {
+    const layer = getHighestBlockingLayer();
+    if (!layer || layer.id === 'notice-back' || layer.id === 'loadback') return;
+    if (!layer.contains(event.target)) focusHighestBlockingLayer();
+}
+
+document.addEventListener('keydown', handleBlockingLayerKeydown, true);
+document.addEventListener('focusin', handleBlockingLayerFocus, true);
+
 function setupGlobalKey() {
     $(document).keydown(function (event) {
+        if (getHighestBlockingLayer()) {
+            if (event.keyCode == 116) event.preventDefault();
+            return;
+        }
         if (event.keyCode == 116/*F5 被按下 (刷新)*/) {
             event.preventDefault();/*取消默认刷新行为*/
             $('#desktop').css('opacity', '0'); setTimeout(() => { $('#desktop').css('opacity', '1'); }, 100); setIcon();
@@ -1751,13 +2071,21 @@ function isMobileDevice() {
 }
 
 let orientationDismissed = false;
+let orientationPreviousFocus = null;
 
 function checkOrientation() {
     if (orientationDismissed) return;
     const container = document.getElementById('orientation-warning');
     const isPortrait = window.matchMedia("(orientation: portrait)").matches;
     if (isMobileDevice() && isPortrait) {
+        const wasVisible = isVisibleBlockingLayer(container);
+        if (!wasVisible && document.activeElement && document.activeElement !== document.body) {
+            orientationPreviousFocus = document.activeElement;
+        }
         container.style.display = "flex";
+        if (!wasVisible && getHighestBlockingLayer() === container) {
+            focusHighestBlockingLayer();
+        }
     } else {
         container.style.display = "none";
     }
@@ -1766,6 +2094,13 @@ function checkOrientation() {
 function dismissOrientation() {
     orientationDismissed = true;
     document.getElementById('orientation-warning').style.display = 'none';
+    if (orientationPreviousFocus && orientationPreviousFocus.isConnected
+        && isVisibleBlockingLayer(orientationPreviousFocus)
+        && !orientationPreviousFocus.closest('#notice-back[inert]')) {
+        orientationPreviousFocus.focus({ preventScroll: true });
+    }
+    orientationPreviousFocus = null;
+    focusHighestBlockingLayer();
 }
 
 // 监听屏幕方向变化
@@ -1797,8 +2132,16 @@ function showTaskbarPreview(name, event) {
     }
 
     const win = $(`.window.${name}`);
-    if (win.length && !win.hasClass('min')) {
-        const preview = $('#taskbar-preview');
+    const previewBox = $('#taskbar-preview');
+    if (!win.length || win.hasClass('min')) {
+        previewBox.removeClass('show');
+        previewBox.find('.preview-title img').attr('src', '');
+        previewBox.find('.preview-title span').text('');
+        previewBox.find('.preview-content .preview-window').empty();
+        return;
+    }
+    if (win.length) {
+        const preview = previewBox;
         const taskbarItem = $(event.currentTarget);
         const itemRect = taskbarItem[0].getBoundingClientRect();
 

@@ -25,12 +25,15 @@ const STYLE_PROPS = [
     'flex-direction', 'align-items', 'justify-content', 'gap', 'backdrop-filter',
 ];
 
-export async function preparePage(browser, { locale }) {
+export async function preparePage(browser, { locale, onlyOrigin = null }) {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
     await page.setRequestInterception(true);
     page.on('request', req => {
-        if (shouldBlock(req.url())) req.abort('blockedbyclient').catch(() => {});
+        const outsideProbeOrigin = onlyOrigin
+            && /^https?:/i.test(req.url())
+            && !req.url().startsWith(onlyOrigin.replace(/\/$/, '') + '/');
+        if (outsideProbeOrigin || shouldBlock(req.url())) req.abort('blockedbyclient').catch(() => {});
         else req.continue().catch(() => {});
     });
     await page.evaluateOnNewDocument(determinismScript());
@@ -608,9 +611,13 @@ async function captureWindowInteractions(page) {
             try {
                 window.openapp(app); await wait(400);
                 const n0 = document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length;
-                m.newtab(app, 'T1'); await wait(300);
+                // Use the app wrapper rather than m_tab.newtab directly: Explorer
+                // adds its path slot/history here, and Edge also creates an iframe
+                // plus history. Calling the generic renderer alone fabricates an
+                // invalid tab shape and turns the harness itself into a page error.
+                APPS[app].newtab(); await wait(300);
                 const n1 = document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length;
-                m.newtab(app, 'T2'); await wait(300);
+                APPS[app].newtab(); await wait(300);
                 const n2 = document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length;
                 t.push(`tabs ${n0}→${n1}→${n2}`, 'now=' + APPS[app].now, 'len=' + APPS[app].len);
                 m.close(app, APPS[app].tabs.length - 1); await wait(300);
@@ -637,23 +644,136 @@ async function captureDarkStyles(browser, origin, locale, props) {
     return { isDark, styles };
 }
 
+/** 登录门禁必须用真实鼠标验证。DOM 上存在 onclick 并不代表按钮能被命中：
+ *  透明的欢迎层、较高 z-index 的 About 背板，或 inert 背景都可能让脚本级测试
+ *  通过而用户实际点不到。这里让 Tauri 密码状态保持 pending，点击按钮中心，
+ *  然后再释放 IPC 并确认 About 只在登录层真正隐藏后出现。 */
+async function captureLoginGate(browser, origin, locale) {
+    // This probe exercises only the local login shell. Blocking every external
+    // script keeps it comfortably inside LOGIN_BRIDGE_TIMEOUT_MS on slow CI.
+    const page = await preparePage(browser, { locale, onlyOrigin: origin });
+    await page.evaluateOnNewDocument(`
+        window.__loginStatusPending = new Promise(resolve => {
+            window.__resolveLoginStatus = resolve;
+        });
+        window.__TAURI__ = {
+            core: {
+                invoke(name) {
+                    if (name === 'get_login_password_status') return window.__loginStatusPending;
+                    const values = {
+                        get_battery_info: { percent: 0.55, charging: false },
+                        verify_login_password: { ok: true },
+                        set_login_password: true,
+                        check_app_update: null,
+                        read_settings: '{}',
+                        write_settings: true,
+                        ping_host: true,
+                    };
+                    return Promise.resolve(values[name]);
+                },
+            },
+            event: { listen: async () => () => {} },
+        };`);
+    await bootDesktop(page, origin);
+    await settle(page, 40);
+
+    const before = await page.evaluate(() => {
+        const login = document.getElementById('login');
+        const rect = login.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const hit = document.elementFromPoint(x, y);
+        document.getElementById('login-error').textContent = '__not_clicked__';
+        return {
+            center: { x, y },
+            hitId: hit?.id || hit?.closest?.('[id]')?.id || null,
+            loginDisplay: getComputedStyle(document.getElementById('loginback')).display,
+            loginPointerEvents: getComputedStyle(login).pointerEvents,
+            loginInert: document.getElementById('loginback').inert,
+            aboutShown: document.getElementById('notice-back').classList.contains('show'),
+            aboutAriaHidden: document.getElementById('notice-back').getAttribute('aria-hidden'),
+            status: window.__g('loginPasswordStatus'),
+        };
+    });
+
+    await page.mouse.click(before.center.x, before.center.y);
+    delete before.center; // coordinates are input to hit testing, not stable snapshot data
+    await settle(page, 30);
+    const afterPendingClick = await page.evaluate(() => ({
+        error: document.getElementById('login-error').textContent,
+        status: window.__g('loginPasswordStatus'),
+        loginDisplay: getComputedStyle(document.getElementById('loginback')).display,
+        aboutShown: document.getElementById('notice-back').classList.contains('show'),
+    }));
+
+    await page.evaluate(() => window.__resolveLoginStatus({ has_password: false }));
+    await page.waitForFunction(() => {
+        const status = window.__g('loginPasswordStatus');
+        // Older comparison trees predate the explicit state machine; their
+        // equivalent completion signal is removal of the password-mode class.
+        return status === 'no-password'
+            || (typeof status === 'undefined'
+                && !document.getElementById('loginback').classList.contains('tauri-password'));
+    },
+        { timeout: 2000, polling: 20 });
+
+    // Preserve real browser timers for layout/hit testing, but compress only the
+    // two long login-exit delays so this probe adds milliseconds rather than 4s.
+    const ready = await page.evaluate(() => {
+        const nativeSetTimeout = window.setTimeout.bind(window);
+        window.setTimeout = (callback, delay, ...args) =>
+            nativeSetTimeout(callback, delay >= 500 ? Math.max(1, Math.round(delay / 20)) : delay, ...args);
+        const login = document.getElementById('login');
+        const rect = login.getBoundingClientRect();
+        return {
+            center: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+            status: window.__g('loginPasswordStatus'),
+            aboutShown: document.getElementById('notice-back').classList.contains('show'),
+        };
+    });
+    await page.mouse.click(ready.center.x, ready.center.y);
+    delete ready.center;
+    const immediatelyAfterSuccess = await page.evaluate(() => ({
+        loginDisplay: getComputedStyle(document.getElementById('loginback')).display,
+        aboutShown: document.getElementById('notice-back').classList.contains('show'),
+    }));
+    await settle(page, 260);
+    const afterLoginExit = await page.evaluate(() => ({
+        loginDisplay: getComputedStyle(document.getElementById('loginback')).display,
+        aboutShown: document.getElementById('notice-back').classList.contains('show'),
+        aboutAriaHidden: document.getElementById('notice-back').getAttribute('aria-hidden'),
+        startupNoticeShown: window.__g('startupNoticeShown'),
+        errors: window.__errors.slice(),
+    }));
+    await page.close();
+    return { before, afterPendingClick, ready, immediatelyAfterSuccess, afterLoginExit };
+}
+
 /** Tauri 桌面版契约。Rust 侧在 win12-online/win12-desktop，本地跑不起来，
- *  但可以把 window.win12Native 桩掉，让本仓库这半边的所有分支真实执行一遍：
+ *  但可以把 window.__TAURI__ IPC 桩掉，再由真实 tauri_api.js 建立 win12Native，
+ *  让本仓库这半边的所有分支真实执行一遍：
  *  isTauriApp() 走 true 分支、关于页标题切换、panic-color 从 settings.json 同步、
  *  以及 tauri_api.js 解析期调用 updateAboutAppEntrypoints() 后的 DOM 状态。 */
 async function captureTauriContract(browser, origin, locale) {
     const page = await preparePage(browser, { locale });
     await page.evaluateOnNewDocument(`
-        window.win12Native = {
-            isTauri: () => true,
-            getBatteryInfo: () => Promise.resolve({ level: 0.55, charging: true }),
-            getLoginPasswordStatus: () => Promise.resolve(false),
-            verifyLoginPassword: () => Promise.resolve(true),
-            setLoginPassword: () => Promise.resolve(true),
-            checkAppUpdate: () => Promise.resolve(null),
-            readSettings: () => Promise.resolve(JSON.stringify({ 'panic-color': '#123456' })),
-            writeSettings: () => Promise.resolve(true),
-            pingHost: () => Promise.resolve(''),
+        window.__TAURI__ = {
+            core: {
+                invoke(name) {
+                    const values = {
+                        get_battery_info: { percent: 0.55, charging: true },
+                        get_login_password_status: { has_password: false },
+                        verify_login_password: { ok: true },
+                        set_login_password: true,
+                        check_app_update: null,
+                        read_settings: JSON.stringify({ 'panic-color': '#123456' }),
+                        write_settings: true,
+                        ping_host: true,
+                    };
+                    return Promise.resolve(values[name]);
+                },
+            },
+            event: { listen: async () => () => {} },
         };`);
     await bootDesktop(page, origin);
     await settle(page, 600);
@@ -667,7 +787,9 @@ async function captureTauriContract(browser, origin, locale) {
         },
         domContracts: ['battery', 'setting-password-status', 'ReleaseShowDesktop',
                        'contri-desktop', 'StarShowDesktop'].map(id => id + '=' + !!document.getElementById(id)),
+        batteryLabel: document.getElementById('battery')?.getAttribute('aria-label'),
         panicColorSynced: localStorage.getItem('panic-color'),
+        loginStatus: window.__g('loginPasswordStatus'),
         errors: window.__errors.slice(),
     }));
     await page.close();
@@ -711,8 +833,10 @@ export async function capture(browser, { origin, locale, label }) {
     snap.darkStyles = await captureDarkStyles(browser, origin, locale, TOKEN_PROPS);
     // Tauri 桌面版契约（桩掉 win12Native，跑本仓库这半边的所有分支）
     snap.tauriContract = await captureTauriContract(browser, origin, locale);
+    // Tauri 登录层必须由真实 hit testing 与鼠标事件验证，不能只调用函数。
+    snap.loginGate = await captureLoginGate(browser, origin, locale);
 
     return normalizeOrigins(snap);
 }
 
-export { STYLE_SELECTORS, STYLE_PROPS };
+export { STYLE_SELECTORS, STYLE_PROPS, captureLoginGate };

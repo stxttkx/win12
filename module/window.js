@@ -9,11 +9,7 @@ function showwin(name) {
     if (name != 'run') {
         $('.window.' + name).attr('style', 'top: 10%;left: 15%;');
     }
-    $('#taskbar>.' + wo[0]).removeClass('foc');
-    $('.window.' + wo[0]).removeClass('foc');
-    wo.splice(0, 0, name);
-    orderwin();
-    $('.window.' + name).addClass('foc');
+    focwin(name);
     if (!$('#start-menu.show')[0] && !$('#search-win.show')[0] && !$('#widgets.show')[0] && !$('#control.show')[0] && !$('#datebox.show')[0]) {
         if ($('.window.max:not(.left):not(.right)')[0]) {
             $('#dock-box').addClass('hide');
@@ -28,9 +24,11 @@ function showwin(name) {
 }
 
 function hidewin(name, arg = 'window') {
-    $('.window.' + name).removeClass('notrans');
-    $('.window.' + name).removeClass('max');
-    $('.window.' + name).removeClass('show');
+    const win = $('.window.' + name);
+    win.removeClass('notrans');
+    win.removeClass('max');
+    win.removeClass('show');
+    win.removeClass('foc');
     if (name == 'camera') {
       // 相机关闭后统一清理 tracks
       closeVideo()
@@ -51,8 +49,16 @@ function hidewin(name, arg = 'window') {
         }
     }, 200);
     $('.window.' + name + '>.titbar>div>.wbtg.max').html('<i class="bi bi-app"></i>');
-    wo.splice(wo.indexOf(name), 1);
-    focwin(wo[wo.length - 1]);
+    removeWindowFromOrder(name);
+    normalizeWindowOrder();
+    const next = wo.find(windowName => !$('.window.' + windowName).hasClass('min'));
+    if (next) {
+        focwin(next);
+    }
+    else {
+        clearWindowFocus();
+        orderwin();
+    }
     // orderwindow();
     if (!$('#start-menu.show')[0] && !$('#search-win.show')[0] && !$('#widgets.show')[0] && !$('#control.show')[0] && !$('#datebox.show')[0]) {
         if ($('.window.max:not(.left):not(.right)')[0]) {
@@ -132,7 +138,7 @@ function minwin(name) {
             }
         }, 200);
     } else {
-        focwin(null);
+        const wasFocused = wo[0] == name || $('.window.' + name).hasClass('foc');
         if ($('.window.' + name).hasClass('max')) {
             $('.window.' + name).addClass('min-max');
         }
@@ -141,6 +147,22 @@ function minwin(name) {
         $('#taskbar>.' + name).addClass('min');
         $('.window.' + name).addClass('min');
         $('.window.' + name).removeClass('notrans');
+        removeWindowFromOrder(name);
+        wo.push(name);
+        normalizeWindowOrder();
+        if (wasFocused) {
+            const next = wo.find(windowName => windowName != name && !$('.window.' + windowName).hasClass('min'));
+            if (next) {
+                focwin(next);
+            }
+            else {
+                clearWindowFocus();
+                orderwin();
+            }
+        }
+        else {
+            orderwin();
+        }
         setTimeout(() => { $('.window.' + name).removeClass('show-begin'); }, 200);
     }
 }
@@ -282,7 +304,36 @@ function win_resizing(win, e, arg) {
     }
 }
 let wo = [];
+function windowIsOpen(name) {
+    return typeof name == 'string' && name.length > 0 &&
+        ($('.window.' + name).hasClass('show-begin') || $('#taskbar>.' + name).length > 0);
+}
+function removeWindowFromOrder(name) {
+    for (let i = wo.length - 1; i >= 0; i--) {
+        if (wo[i] == name) {
+            wo.splice(i, 1);
+        }
+    }
+}
+function normalizeWindowOrder() {
+    const seen = new Set();
+    for (let i = 0; i < wo.length;) {
+        const name = wo[i];
+        if (!windowIsOpen(name) || seen.has(name)) {
+            wo.splice(i, 1);
+        }
+        else {
+            seen.add(name);
+            i++;
+        }
+    }
+}
+function clearWindowFocus() {
+    $('#taskbar>.foc').removeClass('foc');
+    $('.window.foc').removeClass('foc');
+}
 function orderwin() {
+    normalizeWindowOrder();
     for (let i = 0; i < wo.length; i++) {
         const win = $('.window.' + wo[wo.length - i - 1]);
         if (topmost.includes(wo[wo.length - i - 1])) {
@@ -475,16 +526,19 @@ page.addEventListener('mousemove', (e) => {
 
 // 屎山警告
 function focwin(name, arg = 'window') {
-    // if(wo[0]==name)return;
+    if (!windowIsOpen(name)) {
+        return false;
+    }
+    normalizeWindowOrder();
+    clearWindowFocus();
+    removeWindowFromOrder(name);
+    wo.splice(0, 0, name);
     if (arg == 'window') {
-        $('#taskbar>.' + wo[0]).removeClass('foc');
         $('#taskbar>.' + name).addClass('foc');
     }
-    $('.window.' + wo[0]).removeClass('foc');
-    wo.splice(wo.indexOf(name), 1);
-    wo.splice(0, 0, name);
     orderwin();
     $('.window.' + name).addClass('foc');
+    return true;
 }
 function taskbarclick(name) {
     if ($('.window.' + name).hasClass('foc')) {

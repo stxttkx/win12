@@ -73,9 +73,10 @@ function createWebapp(id, src) {
             return null;
         },
         load: () => {
-            document.getElementById('win-' + id)
-                .insertAdjacentHTML('afterbegin',
-                    `<iframe src="${src}" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>`);
+            const container = document.getElementById('win-' + id);
+            if (!container || container.querySelector(':scope > iframe')) return;
+            container.insertAdjacentHTML('afterbegin',
+                `<iframe src="${src}" frameborder="0" style="width: 100%; height: 100%;" loading="lazy"></iframe>`);
         }
     };
 }

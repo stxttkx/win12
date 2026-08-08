@@ -6,6 +6,7 @@ let dymanic = [
 ]
 this.addEventListener('fetch', function (event) {
   if (!/^https?:$/.test(new URL(event.request.url).protocol)) return
+  if (event.request.method !== 'GET') return
 
   event.respondWith(
     caches.match(event.request).then(res => {
@@ -20,18 +21,21 @@ this.addEventListener('fetch', function (event) {
         console.log('动态请求', event.request.url);
         return fetch(event.request);
       }
-      return res ||
+      return (res && res.ok) ? res :
         fetch(event.request)
           .then(responese => {
+            if (!responese.ok) return responese;
             const responeseClone = responese.clone();
-            caches.open('def').then(cache => {
+            return caches.open('def').then(cache => {
               console.log('下载数据', responeseClone.url);
-              cache.put(event.request, responeseClone);
-            })
-            return responese;
+              return cache.put(event.request, responeseClone);
+            }).catch(err => {
+              console.log(err);
+            }).then(() => responese);
           })
           .catch(err => {
             console.log(err);
+            throw err;
           });
     })
   )
@@ -65,30 +69,31 @@ function isProtected(url) {
 let flag = false;
 
 function update(force = false) {
-  caches.keys().then(keys => {
-    if (keys.includes('def')) {
-      caches.open('def').then(cc => {
-        cc.keys().then(key => {
-          key.forEach(k => {
-            if (force || !isProtected(k.url)) {
-              console.log('删除数据', k.url);
-              return cc.delete(k);
-            }
-          });
-        });
+  return caches.keys().then(keys => {
+    if (!keys.includes('def')) return;
+    return caches.open('def').then(cc => {
+      return cc.keys().then(keys => {
+        return Promise.all(keys.map(k => {
+          if (force || !isProtected(k.url)) {
+            console.log('删除数据', k.url);
+            return cc.delete(k);
+          }
+        }));
       });
-    }
+    });
   });
 }
 
 
 this.addEventListener('message', function (e) {
-  if (e.data.head == 'update') {
-    if(e.data.force)update(true);
-    else update();
+  if (e.data && e.data.head == 'update') {
+    const updating = update(Boolean(e.data.force));
+    if (typeof e.waitUntil == 'function') e.waitUntil(updating);
   }
 });
-this.addEventListener('activate', update);
+this.addEventListener('activate', function (event) {
+  event.waitUntil(update(false));
+});
 
 // let dongtai=[
 //   'api.github.com',

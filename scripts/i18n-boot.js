@@ -61,6 +61,7 @@ if (localStorage.getItem('lang') != null) {
         localStorage.setItem('lang', 'en');
 }
 langcode = localStorage.getItem('lang');
+document.documentElement.lang = langcode;
 
 
 if (document.querySelectorAll('#loginback>.langselect>.' + langcode).length != 0) {
@@ -105,5 +106,4 @@ function updateAboutAppEntrypoints() {
 }
 
 updateAboutAppEntrypoints();
-
 

@@ -1,4 +1,5 @@
 let m_tab={
+    closing: new WeakSet(),
     newtab: (appn,n) => {
         let app=apps[appn];
         app.tabs.push([app.len++, n]);
@@ -96,14 +97,26 @@ let m_tab={
     },
     close: (appn, c) => {
         let app=apps[appn];
-        $(`.window.${appn}>.titbar>.tabs>.tab.${app.tabs[c][0]}`).addClass('close');
+        const tab = app.tabs[c];
+        if (!tab || m_tab.closing.has(tab)) {
+            return;
+        }
+        const tabId = tab[0];
+        m_tab.closing.add(tab);
+        $(`.window.${appn}>.titbar>.tabs>.tab.${tabId}`).addClass('close');
         for (let i = c + 1; i < app.tabs.length; i++) {
             const _id = app.tabs[i][0];
             $(`.window.${appn}>.titbar>.tabs>.tab.${_id}`).addClass('left');
         }
         setTimeout(() => {
-            $(`#win-${appn}>iframe.${app.tabs[c][0]}`).remove();
-            app.tabs.splice(c, 1);
+            const currentIndex = app.tabs.findIndex(current => current[0] == tabId);
+            if (currentIndex < 0 || app.tabs[currentIndex] !== tab) {
+                m_tab.closing.delete(tab);
+                return;
+            }
+            $(`#win-${appn}>iframe.${tabId}`).remove();
+            app.tabs.splice(currentIndex, 1);
+            m_tab.closing.delete(tab);
             m_tab.settabs(appn);
             if (app.tabs.length == 0) {
                 hidewin(appn);

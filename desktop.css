@@ -522,6 +522,26 @@ list>span.focs.cl {
     padding-right: 3px;
 }
 
+button.dock,
+button.dock-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+button.dock-btn {
+    padding: 0 3px;
+    background: transparent;
+}
+
+#dock-box button:focus-visible {
+    outline: 2px solid var(--href);
+    outline-offset: 2px;
+}
+
 .dock.control:hover,
 .dock.theme:hover,
 .dock.date:hover {
@@ -1096,7 +1116,7 @@ input-before {
 }
 
 #startmenu-r>.row1>.tool>.pw>.btn-icon.show>i {
-    background-color: var(--hover-h);
+    background-color: var(--hover-half);
 }
 
 #startmenu-r>.row1>.tool>.pw>.btn-icon.show>i:hover {
@@ -2309,9 +2329,12 @@ input-before {
     height: 100%;
     background-color: #00000070;
     position: fixed;
-    z-index: 99;
+    /* A modal makes every other body layer inert, so it must also paint above
+       context menus, orientation UI and taskbar previews. */
+    z-index: 11000;
     justify-content: center;
     align-items: center;
+    display: none;
     opacity: 0;
     pointer-events: none;
     transition: all 150ms;
@@ -2383,11 +2406,17 @@ input-before {
 #notice>.btns>.btn {
     margin-left: 10px;
     background-color: var(--msg);
+    font: inherit;
     min-width: 100px;
     text-align: center;
     border-radius: var(--radius-xl);
     transition: 50ms;
     box-shadow: 0 1px 3px 1px var(--s3d);
+}
+
+#notice :focus-visible {
+    outline: 2px solid var(--href);
+    outline-offset: 2px;
 }
 
 :root.corner_squ #notice>.btns>.btn {
@@ -2885,7 +2914,7 @@ body>.container>.image-container>.svg {
 #taskbar-preview {
     position: fixed;
     bottom: 60px;
-    background: var(--card-bg);
+    background: var(--card);
     backdrop-filter: blur(20px) saturate(1.5);
     -webkit-backdrop-filter: blur(20px) saturate(1.5);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
@@ -2938,6 +2967,66 @@ body>.container>.image-container>.svg {
 }
 
 @media screen and (max-width: 768px) {
+    #start-menu {
+        width: calc(100vw - 16px);
+        left: 8px;
+    }
+
+    #start-menu > #startmenu-l,
+    #start-menu.max > #startmenu-l {
+        flex: 0 0 clamp(120px, 38%, 300px);
+        width: auto;
+        min-width: 0;
+    }
+
+    #start-menu > #startmenu-r {
+        width: auto;
+        min-width: 0;
+    }
+
+    #startmenu-l > p {
+        overflow: hidden;
+        font-size: clamp(16px, 4vw, 24px) !important;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #startmenu-r > .row1 {
+        flex-direction: column-reverse;
+    }
+
+    #startmenu-r > .row1 > .tool,
+    #start-menu.max > #startmenu-r > .row1 > .tool {
+        width: 100%;
+        margin: 0;
+        padding: 6px 8px 0;
+        flex-direction: row;
+        align-items: center;
+        min-width: 0;
+    }
+
+    #startmenu-r > .row1 > .tool > .time {
+        margin: 0 auto 0 0 !important;
+        font-size: 18px !important;
+        white-space: nowrap;
+    }
+
+    #startmenu-r > .row1 > .tool > .date {
+        display: none;
+    }
+
+    #startmenu-r > .row1 > .folder {
+        flex: 0 0 auto;
+        margin: 4px 8px;
+        padding: 4px 6px;
+        overflow-x: auto;
+    }
+
+    #startmenu-r > .row1 > .folder > .sm-app {
+        flex: 0 0 72px;
+        width: 72px;
+    }
+
     body .window.window {
         width: 92vw;
         height: 75vh;
