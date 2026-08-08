@@ -20,23 +20,64 @@ function arg(name, def) {
     return i === -1 ? def : (process.argv[i + 1] ?? true);
 }
 
-// puppeteer 25 期望的 Chrome 版本与本机 cache 里的不一致，直接指到 cache 里实际存在的那个
+// puppeteer 自带的版本探测经常和本机实际装的对不上（升级 puppeteer 会清掉旧的
+// ~/.cache/puppeteer/chrome，导致它去找一个根本不存在的版本）。这里按多个来源依次回退，
+// 任何一个能用就行——套件只需要一个 Chromium 内核，不挑版本。
 function findChrome() {
-    if (process.env.CHROME_BIN) return process.env.CHROME_BIN;
-    const base = resolve(process.env.HOME, '.cache/puppeteer/chrome');
-    if (!existsSync(base)) return undefined;
-    for (const dir of readdirSync(base).sort().reverse()) {
-        for (const app of ['Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-                           'chrome-linux64/chrome']) {
-            const p = resolve(base, dir, 'chrome-mac-arm64', app);
-            if (existsSync(p)) return p;
-            const p2 = resolve(base, dir, app);
-            if (existsSync(p2)) return p2;
+    if (process.env.CHROME_BIN && existsSync(process.env.CHROME_BIN)) return process.env.CHROME_BIN;
+
+    const cands = [];
+    // ① puppeteer 自己的缓存
+    const pupBase = resolve(process.env.HOME, '.cache/puppeteer/chrome');
+    if (existsSync(pupBase)) {
+        for (const dir of readdirSync(pupBase).sort().reverse()) {
+            for (const rel of ['chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+                               'chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+                               'chrome-linux64/chrome']) {
+                cands.push(resolve(pupBase, dir, rel));
+            }
         }
     }
-    return undefined;
+    // ② playwright 的缓存
+    const pwBase = resolve(process.env.HOME, 'Library/Caches/ms-playwright');
+    if (existsSync(pwBase)) {
+        for (const dir of readdirSync(pwBase).filter(d => d.startsWith('chromium')).sort().reverse()) {
+            cands.push(resolve(pwBase, dir, 'chrome-mac/Chromium.app/Contents/MacOS/Chromium'));
+            cands.push(resolve(pwBase, dir, 'chrome-linux/chrome'));
+        }
+    }
+    // ③ 系统安装的浏览器
+    cands.push('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+               '/Applications/Chromium.app/Contents/MacOS/Chromium',
+               '/usr/bin/google-chrome', '/usr/bin/chromium');
+
+    return cands.filter(existsSync);
 }
-const CHROME = findChrome();
+
+const LAUNCH_ARGS = ['--no-sandbox', '--disable-gpu', '--use-fake-ui-for-media-stream',
+                     '--use-fake-device-for-media-stream', '--disable-features=MediaFoundationVideoCapture'];
+
+/** 光判断文件存在不够——本机就有一份 Framework 残缺的 playwright chromium，
+ *  文件在但一启动就 dlopen 失败。所以逐个真的试启动，成功了才用。 */
+async function launchBrowser() {
+    const cands = findChrome();
+    if (!cands.length) {
+        console.error('找不到任何 Chromium。请设 CHROME_BIN，或跑 npx puppeteer browsers install chrome');
+        process.exit(1);
+    }
+    const errs = [];
+    for (const exe of cands) {
+        try {
+            const br = await puppeteer.launch({ headless: true, executablePath: exe, args: LAUNCH_ARGS });
+            console.log(`浏览器: ${exe}`);
+            return br;
+        } catch (e) {
+            errs.push(`  ${exe}\n    → ${String(e.message).split('\n')[0]}`);
+        }
+    }
+    console.error('所有候选浏览器都启动失败：\n' + errs.join('\n'));
+    process.exit(1);
+}
 
 function serve(dir, port) {
     const p = spawn('python3', ['-m', 'http.server', String(port), '--bind', '127.0.0.1'],
@@ -102,12 +143,7 @@ function summarize(diffs) {
 
 // ---------------------------------------------------------------- main
 
-const browser = await puppeteer.launch({
-    headless: true,
-    executablePath: CHROME,
-    args: ['--no-sandbox', '--disable-gpu', '--use-fake-ui-for-media-stream',
-           '--use-fake-device-for-media-stream', '--disable-features=MediaFoundationVideoCapture'],
-});
+const browser = await launchBrowser();
 
 mkdirSync(OUT, { recursive: true });
 
