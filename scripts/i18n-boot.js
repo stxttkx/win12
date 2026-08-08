@@ -46,7 +46,8 @@ function loadlang(code) {
 let nl = 'zh-TW';
 
 let langcode, lang = (txt, id) => {
-    return $.i18n.prop(id);
+    const translated = i18nOrNull(id);
+    return translated === null ? txt : translated;
 };
 
 if (localStorage.getItem('lang') != null) {
@@ -83,7 +84,7 @@ console.log('?')
 
 // 函数 lang(txt,id)
 /// langcode==zh_cn 下返回 txt,
-/// 否则返回语言 properties 文件中键 id 对应的值。
+/// 否则优先返回语言 properties 文件中键 id 对应的值，缺失时保留 txt 兜底。
 /// 用例：lang('设置','setting.name')
 // 
 // 为开发方便，故不将简体中文纳入语言考虑
