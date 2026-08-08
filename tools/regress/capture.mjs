@@ -498,7 +498,129 @@ async function captureTargetedFixes(browser, origin, locale) {
         };
     });
 
+    // explorer.file 右键菜单：需先初始化 explorer 才能渲染，主快照里一直是 HARNESS_EMPTY
+    out.explorerFileMenu = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        try {
+            // 必须先把上一个探针（reopenContextMenu）留下的菜单彻底清掉，
+            // 否则 showcm 会走「已有菜单打开」的延时分支，测到的是上一个菜单的残留内容。
+            const cmEl = document.querySelector('#cm');
+            cmEl.classList.remove('show', 'show-begin');
+            cmEl.querySelector('list').innerHTML = '';
+            await wait(400);
+            window.openapp('explorer');
+            await wait(800);
+            const ev = { clientX: 400, clientY: 300, preventDefault() {}, stopPropagation() {}, target: document.body };
+            const errBefore = window.__errors.length;
+            window.showcm(ev, 'explorer.file', 'C:/Program Files/about.exe');
+            await wait(400);
+            const cm = document.querySelector('#cm');
+            return {
+                itemCount: cm ? cm.querySelectorAll('a[onmousedown],a[onclick]').length : 0,
+                rendered: cm ? cm.innerHTML.replace(/\s+/g, ' ').slice(0, 160) : null,
+                errors: window.__errors.slice(errBefore),
+            };
+        } catch (e) { return { threw: String(e) }; }
+    });
+
     await page.close();
+    return out;
+}
+
+/** 真实鼠标驱动的窗口交互：拖拽、缩放、贴边吸附、标签页。
+ *
+ *  这一段必须用真实鼠标事件而不是直接调 JS 函数 —— module/window.js 在解析期把
+ *  .window 与 .window>.titbar 两个 NodeList **按下标配对**来绑定拖拽（见 C3）。
+ *  阶段 7 把窗口标记改成运行时注入后，一旦配对错位，拖 A 窗口会动到 B 窗口，
+ *  而任何直接调函数的测试都发现不了。
+ */
+async function captureWindowInteractions(page) {
+    const out = {};
+    const rect = sel => page.evaluate(s => {
+        const e = document.querySelector(s);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
+    }, sel);
+
+    for (const app of ['calc', 'notepad', 'explorer']) {
+        const rec = {};
+        await page.evaluate(a => window.openapp(a), app);
+        await settle(page, 400);
+        const sel = `.window.${app}`;
+        rec.opened = await rect(sel);
+
+        // —— 拖拽：在标题栏按下、移动、松开。验证「拖谁动谁」——
+        const bar = await page.evaluate(s => {
+            const e = document.querySelector(s + '>.titbar');
+            if (!e) return null;
+            const r = e.getBoundingClientRect();
+            return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+        }, sel);
+        if (bar && rec.opened) {
+            // 拖之前记下所有窗口的位置，拖完比对——只有目标窗口该动
+            const before = await page.evaluate(() =>
+                [...document.querySelectorAll('.window')].map(w => {
+                    const r = w.getBoundingClientRect();
+                    return w.classList[1] + ':' + Math.round(r.x) + ',' + Math.round(r.y);
+                }));
+            await page.mouse.move(bar.x, bar.y);
+            await page.mouse.down();
+            await page.mouse.move(bar.x + 120, bar.y + 60, { steps: 8 });
+            await page.mouse.up();
+            await settle(page, 400);
+            const after = await page.evaluate(() =>
+                [...document.querySelectorAll('.window')].map(w => {
+                    const r = w.getBoundingClientRect();
+                    return w.classList[1] + ':' + Math.round(r.x) + ',' + Math.round(r.y);
+                }));
+            const moved = before.map((b, i) => b === after[i] ? null : b.split(':')[0]).filter(Boolean);
+            rec.dragMovedWindows = moved;              // 必须恰好是 [app]，多一个就说明配对错位
+            rec.afterDrag = await rect(sel);
+        }
+
+        // —— 贴边吸附：拖到屏幕最上沿应出现 #window-fill 预览 ——
+        if (bar) {
+            await page.mouse.move(bar.x + 120, bar.y + 60);
+            await page.mouse.down();
+            await page.mouse.move(700, 0, { steps: 10 });
+            rec.snapPreviewClasses = await page.evaluate(() => {
+                const f = document.querySelector('#window-fill');
+                return f ? [...f.classList].sort().join(' ') : null;
+            });
+            await page.mouse.up();
+            await settle(page, 400);
+            rec.afterSnap = await rect(sel);
+        }
+
+        await page.evaluate(a => window.hidewin(a), app);
+        await settle(page, 300);
+        out[app] = rec;
+    }
+
+    // —— 标签页：explorer 与 edge 走 m_tab ——
+    out.tabs = await page.evaluate(async () => {
+        const wait = ms => new Promise(r => setTimeout(r, ms));
+        const m = window.__g('m_tab'), APPS = window.__g('apps');
+        const res = {};
+        for (const app of ['explorer', 'edge']) {
+            const t = [];
+            try {
+                window.openapp(app); await wait(400);
+                const n0 = document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length;
+                m.newtab(app, 'T1'); await wait(300);
+                const n1 = document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length;
+                m.newtab(app, 'T2'); await wait(300);
+                const n2 = document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length;
+                t.push(`tabs ${n0}→${n1}→${n2}`, 'now=' + APPS[app].now, 'len=' + APPS[app].len);
+                m.close(app, APPS[app].tabs.length - 1); await wait(300);
+                t.push('afterClose=' + document.querySelectorAll(`.window.${app}>.titbar>.tabs>.tab`).length);
+                window.hidewin(app); await wait(200);
+            } catch (e) { t.push('THREW: ' + String(e).slice(0, 70)); }
+            res[app] = t;
+        }
+        return res;
+    });
     return out;
 }
 
@@ -513,6 +635,43 @@ async function captureDarkStyles(browser, origin, locale, props) {
     const styles = await captureDeepStyles(page, props);
     await page.close();
     return { isDark, styles };
+}
+
+/** Tauri 桌面版契约。Rust 侧在 win12-online/win12-desktop，本地跑不起来，
+ *  但可以把 window.win12Native 桩掉，让本仓库这半边的所有分支真实执行一遍：
+ *  isTauriApp() 走 true 分支、关于页标题切换、panic-color 从 settings.json 同步、
+ *  以及 tauri_api.js 解析期调用 updateAboutAppEntrypoints() 后的 DOM 状态。 */
+async function captureTauriContract(browser, origin, locale) {
+    const page = await preparePage(browser, { locale });
+    await page.evaluateOnNewDocument(`
+        window.win12Native = {
+            isTauri: () => true,
+            getBatteryInfo: () => Promise.resolve({ level: 0.55, charging: true }),
+            getLoginPasswordStatus: () => Promise.resolve(false),
+            verifyLoginPassword: () => Promise.resolve(true),
+            setLoginPassword: () => Promise.resolve(true),
+            checkAppUpdate: () => Promise.resolve(null),
+            readSettings: () => Promise.resolve(JSON.stringify({ 'panic-color': '#123456' })),
+            writeSettings: () => Promise.resolve(true),
+            pingHost: () => Promise.resolve(''),
+        };`);
+    await bootDesktop(page, origin);
+    await settle(page, 600);
+    const out = await page.evaluate(() => ({
+        isTauriApp: typeof window.__g('isTauriApp') === 'function' ? window.__g('isTauriApp')() : null,
+        aboutTitle: typeof window.__g('getAboutAppTitle') === 'function' ? window.__g('getAboutAppTitle')() : null,
+        aboutTitleEls: [...document.querySelectorAll('.about-app-title')].map(e => e.textContent.trim()),
+        tauriClassesPresent: {
+            aboutTauri: !!document.querySelector('.about-tauri'),
+            updateTauri: !!document.querySelector('.update-tauri'),
+        },
+        domContracts: ['battery', 'setting-password-status', 'ReleaseShowDesktop',
+                       'contri-desktop', 'StarShowDesktop'].map(id => id + '=' + !!document.getElementById(id)),
+        panicColorSynced: localStorage.getItem('panic-color'),
+        errors: window.__errors.slice(),
+    }));
+    await page.close();
+    return out;
 }
 
 // ---------------------------------------------------------------- 编排
@@ -536,6 +695,10 @@ export async function capture(browser, { origin, locale, label }) {
     snap.notices = await captureNotices(page);
     snap.apps = await captureApps(page);
     snap.terminalCommands = await captureTerminalCommands(page);
+    // 真实鼠标驱动的拖拽/吸附/标签页。
+    // 必须在**冻结过渡**的状态下测：窗口开场动画会让几何在测量时仍在变化，
+    // 实测同一棵树两次跑出来能差 1~10px。拖拽逻辑本身是 JS 驱动的，不依赖 CSS 过渡。
+    snap.windowInteractions = await captureWindowInteractions(page);
     await thawTransitions(page);
 
     snap.storage = await captureStorage(page);
@@ -546,6 +709,8 @@ export async function capture(browser, { origin, locale, label }) {
     snap.targetedFixes = await captureTargetedFixes(browser, origin, locale);
     // 暗色模式的逐元素计算样式
     snap.darkStyles = await captureDarkStyles(browser, origin, locale, TOKEN_PROPS);
+    // Tauri 桌面版契约（桩掉 win12Native，跑本仓库这半边的所有分支）
+    snap.tauriContract = await captureTauriContract(browser, origin, locale);
 
     return normalizeOrigins(snap);
 }
