@@ -4,15 +4,24 @@
  * 因此本文件必须在 desktop.js **之后**加载（lang / isTauriApp 在那里定义）。
  */
 const nts = {
+    'macos-web': {
+        cnt: `<p class="tit">MacOS-Web</p>
+            <p>MacOS-Web 是由 puruvj 开发的开源项目，遵循 MIT 许可证。</p>
+            <p>此本项目与 win12-online、Apple Inc. 无任何关联，亦非云电脑服务。</p>`,
+        btn: [
+            { type: 'main', text: lang('打开', 'open'), js: "closenotice();openapp('macos', true);" },
+            { type: 'detail', text: lang('取消', 'cancel'), js: 'closenotice();' }
+        ]
+    },
     'about': {
         cnt: lang(`<p class="tit">${isTauriApp() ? '关于 Win12-desktop' : 'Win12 网页版'}</p>
             <p>${isTauriApp() ? 'Win12-desktop 是 Win12 网页版的桌面应用版本，' : 'Win12 网页版是一个开放源项目，'}<br />
             希望让用户在网络上预先体验 Windows 12,<br />
             内容可能与 Windows 12 正式版本不一致。<br />
-            使用标准网络技术,例如 HTML, CSS 和 JS<br />
-            此项目绝不附属于微软,且不应与微软操作系统或产品混淆,<br />
+            使用标准网络技术，例如 HTML, CSS 和 JS<br />
+            此项目绝不附属于微软，且不应与微软操作系统或产品混淆，<br />
             这也不是 Windows365 cloud PC<br />
-            本项目中微软、Windows和其他示范产品是微软公司的商标<br />
+            本项目中微软、Windows 和其他示范产品是微软公司的商标<br />
             本项目中 Android 是谷歌公司的商标。</p>`, 'nts.about'),
         btn: [
             { type: 'main', text: lang(lang('关闭', 'close'), 'close'), js: 'closenotice();' },

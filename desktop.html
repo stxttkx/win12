@@ -99,7 +99,7 @@ toggletheme() 切换主题
 	那会改变暗色模式下的表现。主题无关、可放心引用的只有 --theme-1 / --theme-2 / --href。
 
 陆 改完请跑回归：node tools/regress/run.mjs
-	它会对比纯净 main 与当前工作树的行为快照（29 个窗口、右键菜单、对话框、
+	它会对比纯净 main 与当前工作树的行为快照（30 个窗口、右键菜单、对话框、
 	终端命令、逐元素计算样式、localStorage），任何非预期差异都会列出来。
 
 欢迎补充~
@@ -366,6 +366,10 @@ toggletheme() 切换主题
 				<a oncontextmenu="return showcm(event, 'smlapp', ['bilibili', '哔哩哔哩'])" onclick="openapp('bilibili');hide_startmenu();">
 					<img src="icon/bilibili.png">
 					<p data-i18n="bilibili.name">哔哩哔哩</p>
+				</a>
+				<a oncontextmenu="return showcm(event, 'smlapp', ['macos', 'MacOS'])" onclick="openapp('macos');hide_startmenu();">
+					<img src="icon/macos.svg">
+					<p>MacOS</p>
 				</a>
 				<a oncontextmenu="return showcm(event, 'smlapp', ['vscode', 'Visual Studio Code'])" onclick="openapp('vscode');hide_startmenu();">
 					<img src="icon/vscode.png">
@@ -930,7 +934,7 @@ toggletheme() 切换主题
 			</div>
 		</div>
 	</div>
-	<!-- 29 个应用窗口的标记见 data/window-templates.js，由 scripts/mount-windows.js 在此处注入 -->
+	<!-- 30 个应用窗口的标记见 data/window-templates.js，由 scripts/mount-windows.js 在此处注入 -->
 	<div id="window-mount"></div>
 
 	<!-- 数据与引导层，全部早于 desktop.js。顺序是承重的；startup 在本地模块就绪后启动 shell，
