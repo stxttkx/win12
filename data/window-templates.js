@@ -1623,6 +1623,12 @@ const windowMarkup = `	<div class="window defender" data-min-width="800" style="
 			</div>
 			<canvas style="display: none;"></canvas>
 			<a style="display: none;"></a>
+			<div class="error">
+				<div class="icon"></div>
+				<p><strong>嗯...无法连接到摄像头</strong></p>
+				<p>请检查摄像头是否已正确连接，以及是否为本页面授权了摄像头访问</p>
+				<a class="a act" onclick="apps.camera.init()">重试</a>
+			</div>
 		</div>
 	</div>
 	<div class="window windows12">
