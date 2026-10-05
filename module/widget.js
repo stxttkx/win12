@@ -1,4 +1,4 @@
-// 小组件功能
+﻿// 小组件功能
 
 let widgets = {
     widgets: {
@@ -14,7 +14,7 @@ let widgets = {
         remove: (arg) => {
             $(`.wg.${arg}.menu,.wg.${arg}.toolbar,.wg.${arg}.desktop`).remove();
             widgets[arg].remove();
-        }, 
+        },
         addToToolbar: (arg) => {
             // widgets.widgets.remove(arg);
             if ($('.wg.toolbar.' + arg).length != 0) {

@@ -19,17 +19,21 @@
 }
 
 #login {
+    appearance: none;
     background-color: #eeeeee40;
     width: 100px;
     padding: 5.5px 8px;
     color: #fff;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     font-size: 15.8px;
     text-align: center;
     border: 3px solid #00000000;
     transition: 50ms;
     margin-bottom: -40px;
     z-index: 1;
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.5;
 }
 
 #login:hover {
@@ -45,6 +49,11 @@
     transition: 80ms;
 }
 
+#login:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
 #login-password {
     display: none;
     width: 220px;
@@ -53,7 +62,7 @@
     color: #fff;
     background-color: #eeeeee40;
     border: 2px solid #ffffff50;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     outline: none;
     text-align: center;
 }
@@ -78,7 +87,7 @@
 
 :root.corner_squ #login {
     corner-shape: squircle;
-    border-radius: 15px;
+    border-radius: var(--radius-3xl);
 }
 
 #login-welc{
@@ -144,7 +153,7 @@
     justify-content: center;
     align-items: center;
     padding: 7px;
-    border-radius: 7px;
+    border-radius: var(--radius-lg);
 }
 
 #loginback .power>*:hover {
@@ -155,17 +164,96 @@
     opacity: 0.7;
 }
 
-#loginback>.langselect{
+#loginback>.language-dock {
     position: absolute;
-    bottom: 80px;
-    right: 10px;
+    bottom: 20px;
+    left: 20px;
+    width: 42px;
+    height: 42px;
+    padding: 5px;
+    color: #fff;
+    background-color: #eeeeee30;
+    border: 1.5px solid #ffffff30;
+    border-radius: var(--radius-lg);
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 102;
+    transition: 100ms, transform 300ms cubic-bezier(0.05, 0.96, 0.11, 1);
 }
 
-#loginback>.langselect>*{
-    padding: 4px 18px;
-    color: #fff;
+#loginback>.language-dock:hover {
+    background-color: #ffffff40;
+    border-color: #ffffff50;
 }
-#loginback>.langselect>.selected{
+
+#loginback>.language-dock:active {
+    filter: opacity(0.7);
+}
+
+#loginback>.language-dock:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+:root.corner_squ #loginback>.language-dock {
+    corner-shape: squircle;
+    border-radius: var(--radius-3xl);
+}
+
+#loginback>.langselect {
+    display: none;
+    position: absolute;
+    bottom: 72px;
+    left: 20px;
+    width: 240px;
+    padding: 10px;
+    border: 1.5px solid #99999950;
+    border-radius: var(--radius-2xl);
+    background: #20202dcc;
+    backdrop-filter: saturate(4) contrast(0.8) blur(30px);
+    -webkit-backdrop-filter: blur(30px) saturate(3);
+    box-shadow: 3px 3px 20px 1px #00000060;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: 300ms, transform 400ms cubic-bezier(0.05, 0.96, 0.11, 1), opacity 300ms;
+    z-index: 102;
+}
+
+#loginback>.langselect.show-begin {
+    display: flex;
+    flex-direction: column;
+}
+
+#loginback>.langselect.show {
+    opacity: 1;
+    transform: none;
+}
+
+:root.corner_squ #loginback>.langselect {
+    corner-shape: squircle;
+    border-radius: var(--radius-3xl);
+}
+
+#loginback>.langselect>.language-box-title {
+    margin: 2px 8px 6px;
+    color: #fff;
+    font-size: 16px;
+    opacity: 0.75;
+}
+
+#loginback>.langselect>a {
+    padding: 7px 10px;
+    color: #fff;
+    border-radius: var(--radius-md);
+    transition: 100ms;
+}
+
+#loginback>.langselect>a:hover {
+    background-color: #ffffff25;
+}
+
+#loginback>.langselect>.selected {
     pointer-events: none;
     font-weight: bold;
+    background-color: #ffffff20;
 }

@@ -24,6 +24,15 @@ window.win12Native = {
     }
     return await window.__TAURI__.core.invoke("check_app_update");
   },
+  async readSettings() {
+    if (!this.isTauri()) return null;
+    return await window.__TAURI__.core.invoke("read_settings");
+  },
+  async writeSettings(settings) {
+    if (!this.isTauri()) return false;
+    await window.__TAURI__.core.invoke("write_settings", { json: JSON.stringify(settings) });
+    return true;
+  },
   async pingHost(host, ipv6 = false, onOutput = null) {
     if (!this.isTauri()) {
       throw new Error("ping/ping6 仅在 桌面版 中支持使用");
@@ -51,9 +60,19 @@ window.win12Native = {
       }
     });
 
+    // Backend timeout safety net: if the backend never sends done,
+    // unblock the UI after 35 seconds
+    const timeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("ping 超时")), 35000);
+    });
+
     try {
       await window.__TAURI__.core.invoke("ping_host", { host, ipv6, requestId });
-      await finished;
+      await Promise.race([finished, timeout]);
+    } catch (e) {
+      // If the backend timed out, the event listener will linger;
+      // ensure we always clean up and propagate the error
+      throw e;
     } finally {
       unlisten();
     }
